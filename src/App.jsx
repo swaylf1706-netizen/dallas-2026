@@ -152,6 +152,7 @@ function App() {
   const [showNotifications, setShowNotifications] = useState(true);
   const [lastSeenNotificationTime, setLastSeenNotificationTime] = useState(0);
   const initialCloudLoad = useRef(false);
+  const latestLocalWrite = useRef(0);
 
   const tripDoc = useMemo(() => doc(db, "trips", "dallas-2026"), []);
 
@@ -189,10 +190,21 @@ function App() {
     const unsubscribe = onSnapshot(tripDoc, async (snapshot) => {
       if (snapshot.exists()) {
         const cloudData = snapshot.data();
-        if (cloudData.data) setData(mergeData(cloudData.data));
+        const cloudWriteTime = num(cloudData.clientUpdatedAt);
+
+        if (cloudData.data && cloudWriteTime >= latestLocalWrite.current) {
+          setData(mergeData(cloudData.data));
+        }
       } else {
-        await setDoc(tripDoc, { data: starter, updatedAt: serverTimestamp() });
+        const writeTime = Date.now();
+        latestLocalWrite.current = writeTime;
+        await setDoc(tripDoc, {
+          data: starter,
+          clientUpdatedAt: writeTime,
+          updatedAt: serverTimestamp(),
+        });
       }
+
       initialCloudLoad.current = true;
       setCloudReady(true);
     });
@@ -200,27 +212,59 @@ function App() {
     return unsubscribe;
   }, [tripDoc]);
 
-  useEffect(() => {
-    if (!cloudReady || !user || !initialCloudLoad.current) return;
+  const writeData = (nextData) => {
+    const writeTime = Date.now();
+    latestLocalWrite.current = writeTime;
+    setData(nextData);
 
-    const saveTimer = setTimeout(() => {
-      setDoc(
-        tripDoc,
-        {
-          data,
-          updatedAt: serverTimestamp(),
-          updatedBy: {
-            uid: user.uid,
-            name: user.displayName,
-            email: user.email,
+    if (!cloudReady) return;
+
+    setDoc(
+      tripDoc,
+      {
+        data: nextData,
+        clientUpdatedAt: writeTime,
+        updatedAt: serverTimestamp(),
+        updatedBy: user
+          ? {
+              uid: user.uid,
+              name: user.displayName,
+              email: user.email,
+            }
+          : null,
+      },
+      { merge: true }
+    );
+  };
+
+  const updateData = (updater) => {
+    setData((prev) => {
+      const nextData = updater(prev);
+      const writeTime = Date.now();
+      latestLocalWrite.current = writeTime;
+
+      if (cloudReady) {
+        setDoc(
+          tripDoc,
+          {
+            data: nextData,
+            clientUpdatedAt: writeTime,
+            updatedAt: serverTimestamp(),
+            updatedBy: user
+              ? {
+                  uid: user.uid,
+                  name: user.displayName,
+                  email: user.email,
+                }
+              : null,
           },
-        },
-        { merge: true }
-      );
-    }, 900);
+          { merge: true }
+        );
+      }
 
-    return () => clearTimeout(saveTimer);
-  }, [data, user, cloudReady, tripDoc]);
+      return nextData;
+    });
+  };
 
   const notify = (message) => {
     setData((prev) => ({
