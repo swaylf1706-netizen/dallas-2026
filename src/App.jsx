@@ -57,6 +57,7 @@ const starter = {
     shopping: "",
   },
   expenses: [],
+  settlements: [],
   presence: {},
   notifications: [],
 };
@@ -138,7 +139,15 @@ function App() {
   const [cloudReady, setCloudReady] = useState(false);
   const [newName, setNewName] = useState("");
   const [dark, setDark] = useState(() => localStorage.getItem("dallasDark") === "true");
-  const [expenseDraft, setExpenseDraft] = useState({ title: "", paidBy: "", amount: "", notes: "" });
+  const [expenseDraft, setExpenseDraft] = useState({
+    title: "",
+    paidBy: "",
+    amount: "",
+    notes: "",
+    splitMode: "equal",
+    includedPeople: [],
+    manualSplits: {},
+  });
   const [showNotifications, setShowNotifications] = useState(true);
   const [lastSeenNotificationTime, setLastSeenNotificationTime] = useState(0);
   const initialCloudLoad = useRef(false);
@@ -156,7 +165,13 @@ function App() {
     food: (cloudData.food || []).map(normalizeOption),
     shopping: (cloudData.shopping || []).map(normalizeOption),
     finalPicks: { ...starter.finalPicks, ...(cloudData.finalPicks || {}) },
-    expenses: cloudData.expenses || [],
+    expenses: (cloudData.expenses || []).map((expense) => ({
+      splitMode: expense.splitMode || "equal",
+      includedPeople: expense.includedPeople || [],
+      manualSplits: expense.manualSplits || {},
+      ...expense,
+    })),
+    settlements: cloudData.settlements || [],
     presence: cloudData.presence || {},
     notifications: cloudData.notifications || [],
   });
@@ -427,30 +442,148 @@ function App() {
   const grandPP = grandTotal / headcount;
 
   const addExpense = () => {
-    if (!expenseDraft.title.trim() || num(expenseDraft.amount) <= 0) return;
+    const includedPeople = expenseDraft.includedPeople.length
+      ? expenseDraft.includedPeople
+      : data.people.filter((person) => person.going).map((person) => person.name);
+
+    const manualTotal = includedPeople.reduce(
+      (sum, name) => sum + num(expenseDraft.manualSplits?.[name]),
+      0
+    );
+
+    const finalAmount = expenseDraft.splitMode === "manual" ? manualTotal : num(expenseDraft.amount);
+
+    if (!expenseDraft.title.trim() || finalAmount <= 0 || !expenseDraft.paidBy || includedPeople.length === 0) return;
+
     setData((prev) => ({
       ...prev,
-      expenses: [...prev.expenses, { id: uid(), ...expenseDraft, amount: num(expenseDraft.amount), createdAt: Date.now() }],
+      expenses: [
+        ...prev.expenses,
+        {
+          id: uid(),
+          ...expenseDraft,
+          includedPeople,
+          amount: finalAmount,
+          createdAt: Date.now(),
+        },
+      ],
       notifications: [
         { id: uid(), message: `added an expense: ${expenseDraft.title}`, name: user?.displayName || "Someone", createdAt: Date.now() },
         ...(prev.notifications || []),
       ].slice(0, 8),
     }));
-    setExpenseDraft({ title: "", paidBy: "", amount: "", notes: "" });
+
+    setExpenseDraft({
+      title: "",
+      paidBy: "",
+      amount: "",
+      notes: "",
+      splitMode: "equal",
+      includedPeople: [],
+      manualSplits: {},
+    });
   };
 
   const removeExpense = (id) => {
     setData((prev) => ({ ...prev, expenses: prev.expenses.filter((expense) => expense.id !== id) }));
   };
 
+  const toggleExpensePerson = (name) => {
+    setExpenseDraft((prev) => {
+      const included = prev.includedPeople.includes(name);
+      return {
+        ...prev,
+        includedPeople: included
+          ? prev.includedPeople.filter((personName) => personName !== name)
+          : [...prev.includedPeople, name],
+      };
+    });
+  };
+
+  const updateManualSplit = (name, value) => {
+    setExpenseDraft((prev) => ({
+      ...prev,
+      manualSplits: {
+        ...(prev.manualSplits || {}),
+        [name]: value,
+      },
+    }));
+  };
+
+  const markTransactionPaid = (tx) => {
+    setData((prev) => ({
+      ...prev,
+      settlements: [
+        ...(prev.settlements || []),
+        {
+          id: uid(),
+          from: tx.from,
+          to: tx.to,
+          amount: tx.amount,
+          createdAt: Date.now(),
+          markedBy: user?.displayName || "Someone",
+        },
+      ],
+      notifications: [
+        { id: uid(), message: `marked ${tx.from}'s payment to ${tx.to} as paid`, name: user?.displayName || "Someone", createdAt: Date.now() },
+        ...(prev.notifications || []),
+      ].slice(0, 8),
+    }));
+  };
+
+  const undoSettlement = (id) => {
+    setData((prev) => ({
+      ...prev,
+      settlements: (prev.settlements || []).filter((settlement) => settlement.id !== id),
+    }));
+  };
+
   const totalPaid = data.expenses.reduce((sum, expense) => sum + num(expense.amount), 0);
-  const budgetShare = totalPaid / headcount;
+
+  const paidByPerson = {};
+  const shareByPerson = {};
+
+  data.people.forEach((person) => {
+    paidByPerson[person.name] = 0;
+    shareByPerson[person.name] = 0;
+  });
+
+  data.expenses.forEach((expense) => {
+    const includedPeople = expense.includedPeople?.length
+      ? expense.includedPeople
+      : data.people.filter((person) => person.going).map((person) => person.name);
+
+    paidByPerson[expense.paidBy] = (paidByPerson[expense.paidBy] || 0) + num(expense.amount);
+
+    if (expense.splitMode === "manual") {
+      includedPeople.forEach((name) => {
+        shareByPerson[name] = (shareByPerson[name] || 0) + num(expense.manualSplits?.[name]);
+      });
+    } else {
+      const share = includedPeople.length ? num(expense.amount) / includedPeople.length : 0;
+      includedPeople.forEach((name) => {
+        shareByPerson[name] = (shareByPerson[name] || 0) + share;
+      });
+    }
+  });
+
+  const settledByPerson = {};
+  const receivedByPerson = {};
+
+  (data.settlements || []).forEach((settlement) => {
+    settledByPerson[settlement.from] = (settledByPerson[settlement.from] || 0) + num(settlement.amount);
+    receivedByPerson[settlement.to] = (receivedByPerson[settlement.to] || 0) + num(settlement.amount);
+  });
 
   const personBalances = data.people.map((person) => {
-    const paid = data.expenses.filter((expense) => expense.paidBy === person.name).reduce((sum, expense) => sum + num(expense.amount), 0);
-    const owes = Math.max(0, budgetShare - paid);
-    const getsBack = Math.max(0, paid - budgetShare);
-    return { ...person, paid, owes, getsBack };
+    const paid = paidByPerson[person.name] || 0;
+    const share = shareByPerson[person.name] || 0;
+    const settlementPaid = settledByPerson[person.name] || 0;
+    const settlementReceived = receivedByPerson[person.name] || 0;
+    const net = paid - share - settlementReceived + settlementPaid;
+    const owes = Math.max(0, -net);
+    const getsBack = Math.max(0, net);
+    return { ...person, paid, share, settlementPaid, settlementReceived, owes, getsBack };
   });
 
   const creditors = personBalances.filter((person) => person.getsBack > 0.01).map((person) => ({ ...person, remaining: person.getsBack }));
@@ -669,17 +802,209 @@ function App() {
 
         {active === "budget" && (
           <section className={panelClass}>
-            <div className="mb-6 flex items-center gap-3"><Wallet className="text-emerald-500" /><h2 className="text-3xl font-black">Budget Tracker</h2></div>
-            <div className="grid gap-4 md:grid-cols-4">
-              <input value={expenseDraft.title} onChange={(e) => setExpenseDraft({ ...expenseDraft, title: e.target.value })} placeholder="Expense name" className={inputClass} />
-              <select value={expenseDraft.paidBy} onChange={(e) => setExpenseDraft({ ...expenseDraft, paidBy: e.target.value })} className={inputClass}><option value="">Paid by</option>{data.people.map((person) => <option key={person.id} value={person.name}>{person.name}</option>)}</select>
-              <input type="number" value={expenseDraft.amount} onChange={(e) => setExpenseDraft({ ...expenseDraft, amount: e.target.value })} placeholder="Amount" className={inputClass} />
-              <button onClick={addExpense} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">Add Expense</button>
+            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+              <div className="flex items-center gap-3">
+                <Wallet className="text-emerald-500" />
+                <div>
+                  <h2 className="text-3xl font-black">Budget Tracker</h2>
+                  <p className="mt-1 text-sm font-semibold text-slate-400">
+                    Add equal split expenses or custom manual splits.
+                  </p>
+                </div>
+              </div>
             </div>
-            <input value={expenseDraft.notes} onChange={(e) => setExpenseDraft({ ...expenseDraft, notes: e.target.value })} placeholder="Notes" className={`${inputClass} mt-4 w-full`} />
-            <div className="mt-6 grid gap-4 md:grid-cols-3"><div className="rounded-3xl bg-emerald-50 p-5"><p className="text-xs font-black uppercase text-emerald-700">Total Paid</p><p className="mt-2 text-3xl font-black text-emerald-700">{currency(totalPaid)}</p></div><div className="rounded-3xl bg-indigo-50 p-5"><p className="text-xs font-black uppercase text-indigo-700">Share Each</p><p className="mt-2 text-3xl font-black text-indigo-700">{currency(budgetShare)}</p></div><div className="rounded-3xl bg-slate-950 p-5 text-white"><p className="text-xs font-black uppercase text-slate-300">Confirmed</p><p className="mt-2 text-3xl font-black">{confirmedPeople}</p></div></div>
-            <div className="mt-6 grid gap-4">{data.expenses.map((expense) => <div key={expense.id} className={dark ? "flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 p-5" : "flex items-center justify-between rounded-3xl border border-slate-200 bg-slate-50 p-5"}><div><p className="font-black">{expense.title}</p><p className="text-sm font-semibold text-slate-400">Paid by {expense.paidBy || "Unknown"} · {expense.notes}</p></div><div className="flex items-center gap-3"><p className="font-black text-emerald-600">{currency(expense.amount)}</p><button onClick={() => removeExpense(expense.id)} className="rounded-xl bg-red-50 p-2 text-red-500"><Trash2 size={16} /></button></div></div>)}</div>
-            <div className="mt-8"><h3 className="mb-4 text-2xl font-black">Owed Money Tracker</h3><div className="grid gap-4 md:grid-cols-2">{owedTransactions.length === 0 && <div className="rounded-3xl bg-emerald-50 p-5 text-sm font-black text-emerald-700">No one owes anyone yet.</div>}{owedTransactions.map((tx, index) => <div key={`${tx.from}-${tx.to}-${index}`} className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-5" : "rounded-3xl border border-slate-200 bg-slate-50 p-5"}><p className="text-lg font-black">{tx.from} owes {tx.to}</p><p className="mt-2 text-3xl font-black text-red-500">{currency(tx.amount)}</p></div>)}</div></div>
+
+            <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
+              <div className="grid gap-4 md:grid-cols-4">
+                <input
+                  value={expenseDraft.title}
+                  onChange={(e) => setExpenseDraft({ ...expenseDraft, title: e.target.value })}
+                  placeholder="Expense name"
+                  className={inputClass}
+                />
+
+                <select
+                  value={expenseDraft.paidBy}
+                  onChange={(e) => setExpenseDraft({ ...expenseDraft, paidBy: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="">Paid by</option>
+                  {data.people.map((person) => (
+                    <option key={person.id} value={person.name}>{person.name}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={expenseDraft.splitMode}
+                  onChange={(e) => setExpenseDraft({ ...expenseDraft, splitMode: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="equal">Equal Split</option>
+                  <option value="manual">Manual Split</option>
+                </select>
+
+                <input
+                  type="number"
+                  value={expenseDraft.amount}
+                  onChange={(e) => setExpenseDraft({ ...expenseDraft, amount: e.target.value })}
+                  placeholder={expenseDraft.splitMode === "manual" ? "Auto from manual" : "Total amount"}
+                  disabled={expenseDraft.splitMode === "manual"}
+                  className={`${inputClass} disabled:opacity-50`}
+                />
+              </div>
+
+              <input
+                value={expenseDraft.notes}
+                onChange={(e) => setExpenseDraft({ ...expenseDraft, notes: e.target.value })}
+                placeholder="Notes"
+                className={`${inputClass} mt-4 w-full`}
+              />
+
+              <div className="mt-5">
+                <p className="mb-3 text-sm font-black text-slate-600">Who was included?</p>
+                <div className="flex flex-wrap gap-2">
+                  {data.people.map((person) => {
+                    const selected = expenseDraft.includedPeople.includes(person.name);
+                    return (
+                      <button
+                        key={person.id}
+                        onClick={() => toggleExpensePerson(person.name)}
+                        className={
+                          selected
+                            ? "rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"
+                            : "rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-600"
+                        }
+                      >
+                        {person.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs font-bold text-slate-400">
+                  If nobody is selected, the expense applies to all confirmed people.
+                </p>
+              </div>
+
+              {expenseDraft.splitMode === "manual" && (
+                <div className="mt-5 rounded-3xl bg-white p-4">
+                  <p className="mb-3 text-sm font-black text-slate-600">Manual amounts</p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {(expenseDraft.includedPeople.length
+                      ? expenseDraft.includedPeople
+                      : data.people.filter((person) => person.going).map((person) => person.name)
+                    ).map((name) => (
+                      <div key={name} className="grid grid-cols-[1fr_140px] items-center gap-3">
+                        <p className="text-sm font-black text-slate-700">{name}</p>
+                        <input
+                          type="number"
+                          value={expenseDraft.manualSplits?.[name] || ""}
+                          onChange={(e) => updateManualSplit(name, e.target.value)}
+                          placeholder="$0"
+                          className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-sm font-black text-emerald-700">
+                    Manual total: {currency(Object.values(expenseDraft.manualSplits || {}).reduce((sum, value) => sum + num(value), 0))}
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={addExpense}
+                className="mt-5 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white"
+              >
+                Add Expense
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="rounded-3xl bg-emerald-50 p-5">
+                <p className="text-xs font-black uppercase text-emerald-700">Total Paid</p>
+                <p className="mt-2 text-3xl font-black text-emerald-700">{currency(totalPaid)}</p>
+              </div>
+              <div className="rounded-3xl bg-indigo-50 p-5">
+                <p className="text-xs font-black uppercase text-indigo-700">Open Payments</p>
+                <p className="mt-2 text-3xl font-black text-indigo-700">{owedTransactions.length}</p>
+              </div>
+              <div className="rounded-3xl bg-slate-950 p-5 text-white">
+                <p className="text-xs font-black uppercase text-slate-300">Paid Off</p>
+                <p className="mt-2 text-3xl font-black">{(data.settlements || []).length}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              <h3 className="text-2xl font-black">Expenses</h3>
+              {data.expenses.map((expense) => (
+                <div key={expense.id} className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-5" : "rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-black">{expense.title}</p>
+                      <p className="text-sm font-semibold text-slate-400">
+                        Paid by {expense.paidBy || "Unknown"} · {expense.splitMode === "manual" ? "Manual split" : "Equal split"}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">
+                        Included: {(expense.includedPeople?.length ? expense.includedPeople : data.people.filter((person) => person.going).map((person) => person.name)).join(", ")}
+                      </p>
+                      {expense.notes && <p className="mt-2 text-sm font-semibold text-slate-500">{expense.notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="font-black text-emerald-600">{currency(expense.amount)}</p>
+                      <button onClick={() => removeExpense(expense.id)} className="rounded-xl bg-red-50 p-2 text-red-500"><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8">
+              <h3 className="mb-4 text-2xl font-black">Owed Money Tracker</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                {owedTransactions.length === 0 && (
+                  <div className="rounded-3xl bg-emerald-50 p-5 text-sm font-black text-emerald-700">
+                    No one owes anyone right now.
+                  </div>
+                )}
+                {owedTransactions.map((tx, index) => (
+                  <div key={`${tx.from}-${tx.to}-${index}`} className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-5" : "rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
+                    <p className="text-lg font-black">{tx.from} owes {tx.to}</p>
+                    <p className="mt-2 text-3xl font-black text-red-500">{currency(tx.amount)}</p>
+                    <button
+                      onClick={() => markTransactionPaid(tx)}
+                      className="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white"
+                    >
+                      Mark as Paid
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <h3 className="mb-4 text-2xl font-black">Payment History</h3>
+              <div className="grid gap-4">
+                {(data.settlements || []).length === 0 && (
+                  <div className="rounded-3xl bg-slate-50 p-5 text-sm font-black text-slate-500">
+                    No paid-off payments yet.
+                  </div>
+                )}
+                {(data.settlements || []).map((settlement) => (
+                  <div key={settlement.id} className={dark ? "flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 p-5" : "flex items-center justify-between rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
+                    <div>
+                      <p className="font-black">{settlement.from} paid {settlement.to}</p>
+                      <p className="text-sm font-semibold text-slate-400">Marked by {settlement.markedBy}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="font-black text-emerald-600">{currency(settlement.amount)}</p>
+                      <button onClick={() => undoSettlement(settlement.id)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">
+                        Undo
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
         )}
       </main>
