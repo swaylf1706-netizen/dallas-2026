@@ -139,6 +139,8 @@ function App() {
   const [newName, setNewName] = useState("");
   const [dark, setDark] = useState(() => localStorage.getItem("dallasDark") === "true");
   const [expenseDraft, setExpenseDraft] = useState({ title: "", paidBy: "", amount: "", notes: "" });
+  const [showNotifications, setShowNotifications] = useState(true);
+  const [lastSeenNotificationTime, setLastSeenNotificationTime] = useState(0);
   const initialCloudLoad = useRef(false);
 
   const tripDoc = useMemo(() => doc(db, "trips", "dallas-2026"), []);
@@ -222,10 +224,21 @@ function App() {
     await signOut(auth);
   };
 
+  const toggleNotifications = () => {
+    setShowNotifications((prev) => !prev);
+    setLastSeenNotificationTime(Date.now());
+  };
+
+  const clearNotifications = () => {
+    setData((prev) => ({ ...prev, notifications: [] }));
+    setLastSeenNotificationTime(Date.now());
+  };
+
   const confirmedPeople = data.people.filter((person) => person.going).length;
   const headcount = Math.max(1, confirmedPeople);
   const currentItems = boardCategories.includes(active) ? data[active] || [] : [];
   const onlineUsers = Object.values(data.presence || {}).filter((person) => Date.now() - num(person.lastSeen) < 90000);
+  const unreadNotifications = (data.notifications || []).filter((note) => num(note.createdAt) > lastSeenNotificationTime).length;
 
   const updatePresence = () => {
     if (!user) return;
@@ -470,6 +483,14 @@ function App() {
 
   return (
     <div className={pageClass}>
+      <style>{`
+        button, a, input, select { -webkit-tap-highlight-color: transparent; }
+        button, a { transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease; }
+        button:active, a:active { transform: scale(0.97); }
+        .mobile-card-motion { transition: transform 240ms ease, box-shadow 240ms ease, background-color 240ms ease; }
+        .mobile-card-motion:active { transform: scale(0.99); }
+        @media (hover: hover) { .mobile-card-motion:hover { transform: translateY(-4px); } }
+      `}</style>
       <header className={dark ? "sticky top-0 z-50 border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl" : "sticky top-0 z-50 border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl"}>
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:px-8">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
@@ -498,6 +519,15 @@ function App() {
                     <button onClick={handleLogout} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700">Logout</button>
                   </div>
                 )}
+
+                <button onClick={toggleNotifications} className={dark ? "relative rounded-2xl bg-white/10 p-3 text-white" : "relative rounded-2xl bg-indigo-50 p-3 text-indigo-700"} aria-label="Toggle notifications">
+                  <Bell size={18} />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                    </span>
+                  )}
+                </button>
 
                 <button onClick={() => setDark((prev) => !prev)} className={dark ? "rounded-2xl bg-white/10 p-3 text-white" : "rounded-2xl bg-slate-950 p-3 text-white"}>
                   {dark ? <Sun size={18} /> : <Moon size={18} />}
@@ -569,17 +599,28 @@ function App() {
               })}
             </div>
 
-            <div className="mt-7 rounded-3xl border border-indigo-100 bg-indigo-50 p-4">
-              <div className="mb-3 flex items-center gap-2 text-sm font-black text-indigo-700"><Bell size={16} /> Recent Updates</div>
-              <div className="space-y-2">
-                {(data.notifications || []).slice(0, 5).map((note) => (
-                  <div key={note.id} className="rounded-2xl bg-white px-3 py-2 text-xs font-bold text-slate-600">
-                    <span className="font-black text-slate-950">{note.name}</span> {note.message}
+            {showNotifications && (
+              <div className="mt-7 rounded-3xl border border-indigo-100 bg-indigo-50 p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm font-black text-indigo-700">
+                    <Bell size={16} /> Recent Updates
                   </div>
-                ))}
-                {(data.notifications || []).length === 0 && <p className="text-xs font-bold text-indigo-400">No updates yet.</p>}
+                  {(data.notifications || []).length > 0 && (
+                    <button onClick={clearNotifications} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-indigo-700 shadow-sm">
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {(data.notifications || []).slice(0, 5).map((note) => (
+                    <div key={note.id} className="rounded-2xl bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-sm">
+                      <span className="font-black text-slate-950">{note.name}</span> {note.message}
+                    </div>
+                  ))}
+                  {(data.notifications || []).length === 0 && <p className="text-xs font-bold text-indigo-400">No updates yet.</p>}
+                </div>
               </div>
-            </div>
+            )}
           </aside>
         )}
 
@@ -651,7 +692,7 @@ function DraftSuggestionCard({ item, index, active, labels, hasPersonPrice, inpu
   const userVote = user ? item.votes?.[user.uid] : undefined;
 
   return (
-    <div className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-6 transition duration-300 hover:-translate-y-1 hover:bg-white/10" : "rounded-3xl border border-slate-200 bg-slate-50 p-6 transition duration-300 hover:-translate-y-1 hover:shadow-xl"}>
+    <div className={dark ? "mobile-card-motion rounded-3xl border border-white/10 bg-white/5 p-6 hover:bg-white/10" : "mobile-card-motion rounded-3xl border border-slate-200 bg-slate-50 p-6 hover:shadow-xl"}>
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-black">Draft Suggestion #{index + 1}</h3>
@@ -687,7 +728,7 @@ function SavedSuggestionCard({ item, index, active, labels, user, dark, editSave
   const userVote = user ? item.votes?.[user.uid] : undefined;
 
   return (
-    <div className="group relative overflow-hidden rounded-[2.25rem] border border-indigo-200 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_42%,#ecfdf5_100%)] p-7 shadow-[0_30px_100px_rgba(79,70,229,0.20)] ring-4 ring-indigo-100 transition duration-300 hover:-translate-y-1 hover:shadow-[0_35px_120px_rgba(79,70,229,0.28)]">
+    <div className="mobile-card-motion group relative overflow-hidden rounded-[2.25rem] border border-indigo-200 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_42%,#ecfdf5_100%)] p-7 shadow-[0_30px_100px_rgba(79,70,229,0.20)] ring-4 ring-indigo-100 hover:shadow-[0_35px_120px_rgba(79,70,229,0.28)]">
       <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
       <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-indigo-200/50 blur-3xl" />
       <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-emerald-200/60 blur-3xl" />
