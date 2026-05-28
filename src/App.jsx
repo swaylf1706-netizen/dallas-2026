@@ -188,11 +188,16 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(tripDoc, async (snapshot) => {
+      if (snapshot.metadata.hasPendingWrites) return;
+
       if (snapshot.exists()) {
         const cloudData = snapshot.data();
         const cloudWriteTime = num(cloudData.clientUpdatedAt);
+        const justWroteLocally = Date.now() - latestLocalWrite.current < 2500;
 
-        if (cloudData.data && cloudWriteTime >= latestLocalWrite.current) {
+        if (!initialCloudLoad.current && cloudData.data) {
+          setData(mergeData(cloudData.data));
+        } else if (cloudData.data && cloudWriteTime > latestLocalWrite.current && !justWroteLocally) {
           setData(mergeData(cloudData.data));
         }
       } else {
@@ -212,14 +217,14 @@ function App() {
     return unsubscribe;
   }, [tripDoc]);
 
-  const writeData = (nextData) => {
+  const writeData = async (nextData) => {
     const writeTime = Date.now();
     latestLocalWrite.current = writeTime;
     setData(nextData);
 
     if (!cloudReady) return;
 
-    setDoc(
+    await setDoc(
       tripDoc,
       {
         data: nextData,
@@ -267,7 +272,7 @@ function App() {
   };
 
   const notify = (message) => {
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       notifications: [
         { id: uid(), message, name: user?.displayName || "Someone", createdAt: Date.now() },
@@ -290,7 +295,7 @@ function App() {
   };
 
   const clearNotifications = () => {
-    setData((prev) => ({ ...prev, notifications: [] }));
+    updateData((prev) => ({ ...prev, notifications: [] }));
     setLastSeenNotificationTime(Date.now());
   };
 
@@ -302,7 +307,7 @@ function App() {
 
   const updatePresence = () => {
     if (!user) return;
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       presence: {
         ...(prev.presence || {}),
@@ -327,7 +332,7 @@ function App() {
     const cleanName = newName.trim();
     if (!cleanName) return;
 
-    setData((prev) => {
+    updateData((prev) => {
       const alreadyExists = prev.people.some((person) => person.name.toLowerCase() === cleanName.toLowerCase());
       if (alreadyExists) return prev;
 
@@ -345,7 +350,7 @@ function App() {
   };
 
   const togglePerson = (id) => {
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       people: prev.people.map((person) =>
         person.id === id ? { ...person, going: !person.going } : person
@@ -355,17 +360,17 @@ function App() {
 
   const removePerson = (id) => {
     const person = data.people.find((p) => p.id === id);
-    setData((prev) => ({ ...prev, people: prev.people.filter((person) => person.id !== id) }));
+    updateData((prev) => ({ ...prev, people: prev.people.filter((person) => person.id !== id) }));
     if (person) notify(`removed ${person.name} from the going list`);
   };
 
   const addOption = () => {
-    setData((prev) => ({ ...prev, [active]: [...prev[active], blankOption(user)] }));
+    updateData((prev) => ({ ...prev, [active]: [...prev[active], blankOption(user)] }));
     notify(`added a ${labels[active]} suggestion`);
   };
 
   const updateOption = (id, field, value) => {
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       [active]: prev[active].map((item) => (item.id === id ? { ...item, [field]: value } : item)),
     }));
@@ -373,7 +378,7 @@ function App() {
 
   const saveOption = (id) => {
     const item = currentItems.find((x) => x.id === id);
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       [active]: prev[active].map((item) => (item.id === id ? { ...item, saved: true } : item)),
       notifications: [
@@ -384,20 +389,20 @@ function App() {
   };
 
   const editSavedOption = (id) => {
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       [active]: prev[active].map((item) => (item.id === id ? { ...item, saved: false } : item)),
     }));
   };
 
   const removeOption = (id) => {
-    setData((prev) => ({ ...prev, [active]: prev[active].filter((item) => item.id !== id) }));
+    updateData((prev) => ({ ...prev, [active]: prev[active].filter((item) => item.id !== id) }));
     notify(`deleted a ${labels[active]} suggestion`);
   };
 
   const voteOption = (id, vote) => {
     if (!user) return;
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       [active]: prev[active].map((item) => {
         if (item.id !== id) return item;
@@ -412,7 +417,7 @@ function App() {
 
   const addComment = (optionId, category, text) => {
     if (!text.trim()) return;
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       [category]: prev[category].map((item) =>
         item.id === optionId
@@ -438,7 +443,7 @@ function App() {
   };
 
   const removeComment = (optionId, category, commentId) => {
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       [category]: prev[category].map((item) =>
         item.id === optionId ? { ...item, comments: (item.comments || []).filter((c) => c.id !== commentId) } : item
@@ -467,7 +472,7 @@ function App() {
   const activeTotal = currentItems.reduce((sum, item) => sum + getGroupTotal(item), 0);
 
   const setFinalPick = (category, optionId) => {
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       finalPicks: { ...prev.finalPicks, [category]: optionId },
     }));
@@ -500,7 +505,7 @@ function App() {
 
     if (!expenseDraft.title.trim() || finalAmount <= 0 || !expenseDraft.paidBy || includedPeople.length === 0) return;
 
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       expenses: [
         ...prev.expenses,
@@ -530,7 +535,7 @@ function App() {
   };
 
   const removeExpense = (id) => {
-    setData((prev) => ({ ...prev, expenses: prev.expenses.filter((expense) => expense.id !== id) }));
+    updateData((prev) => ({ ...prev, expenses: prev.expenses.filter((expense) => expense.id !== id) }));
   };
 
   const toggleExpensePerson = (name) => {
@@ -584,7 +589,7 @@ function App() {
       ].slice(0, 8),
     };
 
-    setData(nextData);
+    writeData(nextData);
 
     try {
       await setDoc(
@@ -606,7 +611,7 @@ function App() {
   };
 
   const undoSettlement = (id) => {
-    setData((prev) => ({
+    updateData((prev) => ({
       ...prev,
       settlements: (prev.settlements || []).filter((settlement) => settlement.id !== id),
     }));
