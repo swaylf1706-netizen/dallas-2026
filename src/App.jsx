@@ -148,6 +148,7 @@ function App() {
     includedPeople: [],
     manualSplits: {},
   });
+  const [processingPaymentKey, setProcessingPaymentKey] = useState("");
   const [showNotifications, setShowNotifications] = useState(true);
   const [lastSeenNotificationTime, setLastSeenNotificationTime] = useState(0);
   const initialCloudLoad = useRef(false);
@@ -510,25 +511,54 @@ function App() {
     }));
   };
 
-  const markTransactionPaid = (tx) => {
-    setData((prev) => ({
-      ...prev,
-      settlements: [
-        ...(prev.settlements || []),
-        {
-          id: uid(),
-          from: tx.from,
-          to: tx.to,
-          amount: tx.amount,
-          createdAt: Date.now(),
-          markedBy: user?.displayName || "Someone",
-        },
-      ],
+  const getPaymentKey = (tx) => `${tx.from}-${tx.to}-${Math.round(num(tx.amount) * 100)}`;
+
+  const markTransactionPaid = async (tx) => {
+    if (!user) return;
+
+    const paymentKey = getPaymentKey(tx);
+    if (processingPaymentKey === paymentKey) return;
+
+    setProcessingPaymentKey(paymentKey);
+
+    const settlement = {
+      id: uid(),
+      paymentKey,
+      from: tx.from,
+      to: tx.to,
+      amount: Math.round(num(tx.amount) * 100) / 100,
+      createdAt: Date.now(),
+      markedBy: user?.displayName || "Someone",
+    };
+
+    const nextData = {
+      ...data,
+      settlements: [...(data.settlements || []), settlement],
       notifications: [
         { id: uid(), message: `marked ${tx.from}'s payment to ${tx.to} as paid`, name: user?.displayName || "Someone", createdAt: Date.now() },
-        ...(prev.notifications || []),
+        ...(data.notifications || []),
       ].slice(0, 8),
-    }));
+    };
+
+    setData(nextData);
+
+    try {
+      await setDoc(
+        tripDoc,
+        {
+          data: nextData,
+          updatedAt: serverTimestamp(),
+          updatedBy: {
+            uid: user.uid,
+            name: user.displayName,
+            email: user.email,
+          },
+        },
+        { merge: true }
+      );
+    } finally {
+      setProcessingPaymentKey("");
+    }
   };
 
   const undoSettlement = (id) => {
@@ -966,18 +996,24 @@ function App() {
                     No one owes anyone right now.
                   </div>
                 )}
-                {owedTransactions.map((tx, index) => (
-                  <div key={`${tx.from}-${tx.to}-${index}`} className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-5" : "rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
-                    <p className="text-lg font-black">{tx.from} owes {tx.to}</p>
-                    <p className="mt-2 text-3xl font-black text-red-500">{currency(tx.amount)}</p>
-                    <button
-                      onClick={() => markTransactionPaid(tx)}
-                      className="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white"
-                    >
-                      Mark as Paid
-                    </button>
-                  </div>
-                ))}
+                {owedTransactions.map((tx, index) => {
+                  const paymentKey = getPaymentKey(tx);
+                  const isProcessing = processingPaymentKey === paymentKey;
+
+                  return (
+                    <div key={`${tx.from}-${tx.to}-${index}`} className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-5" : "rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
+                      <p className="text-lg font-black">{tx.from} owes {tx.to}</p>
+                      <p className="mt-2 text-3xl font-black text-red-500">{currency(tx.amount)}</p>
+                      <button
+                        onClick={() => markTransactionPaid(tx)}
+                        disabled={isProcessing}
+                        className="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isProcessing ? "Marking Paid..." : "Mark as Paid"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
