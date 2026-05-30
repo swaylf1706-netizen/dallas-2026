@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, provider } from "./firebase";
@@ -306,6 +307,7 @@ function App() {
 
     const confirmed = data.people.filter((person) => person.going);
     const unconfirmed = data.people.filter((person) => !person.going);
+    const totalExpenses = data.expenses.reduce((sum, expense) => sum + num(expense.amount), 0);
 
     const getVoteScoreLocal = (item) => Object.values(item.votes || {}).reduce((sum, vote) => sum + vote, 0);
 
@@ -317,24 +319,22 @@ function App() {
 
     const finalPickLines = boardCategories.map((category) => {
       const selected = (data[category] || []).find((item) => item.id === data.finalPicks?.[category]);
-      return `${labels[category]}: ${selected?.title || "Not selected yet"}`;
+      return `• ${labels[category]}: ${selected?.title || "Not selected yet"}`;
     });
-
-    const totalExpenses = data.expenses.reduce((sum, expense) => sum + num(expense.amount), 0);
 
     if (q.includes("confirm") || q.includes("going") || q.includes("who is coming") || q.includes("who's coming")) {
       if (!confirmed.length) return "No one is confirmed yet.";
-      return `${confirmed.length} people are confirmed:\n${confirmed.map((person) => `• ${person.name}`).join("\n")}`;
+      return [`${confirmed.length} people are confirmed:`, ...confirmed.map((person) => `• ${person.name}`)].join("\\n");
     }
 
     if (q.includes("not confirmed") || q.includes("unconfirmed")) {
       if (!unconfirmed.length) return "Everyone on the list is confirmed.";
-      return `${unconfirmed.length} people are not confirmed:\n${unconfirmed.map((person) => `• ${person.name}`).join("\n")}`;
+      return [`${unconfirmed.length} people are not confirmed:`, ...unconfirmed.map((person) => `• ${person.name}`)].join("\\n");
     }
 
     if (q.includes("owe") || q.includes("owes") || q.includes("money")) {
       if (!owedTransactions.length) return "No one owes anyone right now.";
-      return `Current money owed:\n${owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amount)}`).join("\n")}`;
+      return ["Current money owed:", ...owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amount)}`)].join("\\n");
     }
 
     if (q.includes("budget") || q.includes("spent") || q.includes("expense") || q.includes("total")) {
@@ -342,57 +342,52 @@ function App() {
     }
 
     if (q.includes("final") || q.includes("pick") || q.includes("selected")) {
-      return `Final picks:\n${finalPickLines.map((line) => `• ${line}`).join("\n")}`;
+      return ["Final picks:", ...finalPickLines].join("\\n");
     }
 
     if (q.includes("flight")) {
       const selected = (data.flights || []).find((item) => item.id === data.finalPicks?.flights);
       const top = getTopItem("flights");
-      return selected
-        ? `Final flight: ${selected.title || "Untitled flight"}. ${selected.link ? "There is a link attached." : "No link added yet."}`
-        : top
-          ? `No final flight selected yet. Top flight suggestion: ${top.title || "Untitled flight"} with score ${getVoteScoreLocal(top)}.`
-          : "No flight suggestions yet.";
+      if (selected) return `Final flight: ${selected.title || "Untitled flight"}. ${selected.link ? "There is a link attached." : "No link added yet."}`;
+      if (top) return `No final flight selected yet. Top flight suggestion: ${top.title || "Untitled flight"} with score ${getVoteScoreLocal(top)}.`;
+      return "No flight suggestions yet.";
     }
 
     if (q.includes("hotel") || q.includes("stay")) {
       const selected = (data.stay || []).find((item) => item.id === data.finalPicks?.stay);
       const top = getTopItem("stay");
-      return selected
-        ? `Final stay: ${selected.title || "Untitled stay"}. ${selected.link ? "There is a link attached." : "No link added yet."}`
-        : top
-          ? `No final stay selected yet. Top stay suggestion: ${top.title || "Untitled stay"} with score ${getVoteScoreLocal(top)}.`
-          : "No stay suggestions yet.";
+      if (selected) return `Final stay: ${selected.title || "Untitled stay"}. ${selected.link ? "There is a link attached." : "No link added yet."}`;
+      if (top) return `No final stay selected yet. Top stay suggestion: ${top.title || "Untitled stay"} with score ${getVoteScoreLocal(top)}.`;
+      return "No stay suggestions yet.";
     }
 
     if (q.includes("activity") || q.includes("activities")) {
       const top = getTopItem("activities");
-      return top
-        ? `Top activity suggestion: ${top.title || "Untitled activity"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "activities"))}.`
-        : "No activity suggestions yet.";
+      if (!top) return "No activity suggestions yet.";
+      return `Top activity suggestion: ${top.title || "Untitled activity"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "activities"))}.`;
     }
 
     if (q.includes("food") || q.includes("restaurant") || q.includes("eat")) {
       const top = getTopItem("food");
-      return top
-        ? `Top food suggestion: ${top.title || "Untitled food option"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "food"))}.`
-        : "No food suggestions yet.";
+      if (!top) return "No food suggestions yet.";
+      return `Top food suggestion: ${top.title || "Untitled food option"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "food"))}.`;
     }
 
     if (q.includes("shopping") || q.includes("shop")) {
       const top = getTopItem("shopping");
-      return top
-        ? `Top shopping suggestion: ${top.title || "Untitled shopping option"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "shopping"))}.`
-        : "No shopping suggestions yet.";
+      if (!top) return "No shopping suggestions yet.";
+      return `Top shopping suggestion: ${top.title || "Untitled shopping option"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "shopping"))}.`;
     }
 
     if (q.includes("summary") || q.includes("summarize")) {
-      return `Trip summary:
-• ${confirmed.length} people confirmed
-• Total recorded expenses: ${currency(totalExpenses)}
-• Open payments: ${owedTransactions.length}
-• Final picks:
-${finalPickLines.map((line) => `  - ${line}`).join("\n")}`;
+      return [
+        "Trip summary:",
+        `• ${confirmed.length} people confirmed`,
+        `• Total recorded expenses: ${currency(totalExpenses)}`,
+        `• Open payments: ${owedTransactions.length}`,
+        "• Final picks:",
+        ...finalPickLines.map((line) => `  ${line}`),
+      ].join("\\n");
     }
 
     return null;
@@ -1283,8 +1278,22 @@ ${finalPickLines.map((line) => `  - ${line}`).join("\n")}`;
 
             <div className="flex-1 space-y-3 overflow-y-auto p-5">
               {assistantMessages.map((msg, index) => (
-                <div key={index} className={msg.role === "user" ? "ml-auto max-w-[85%] rounded-3xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white" : "mr-auto max-w-[85%] rounded-3xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700"}>
-                  {msg.content}
+                <div key={index} className={msg.role === "user" ? "ml-auto max-w-[85%] rounded-3xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white" : "mr-auto max-w-[92%] rounded-3xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700"}>
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children }) => <h1 className="mb-3 text-xl font-black leading-tight">{children}</h1>,
+                      h2: ({ children }) => <h2 className="mb-2 mt-4 text-lg font-black leading-tight">{children}</h2>,
+                      h3: ({ children }) => <h3 className="mb-2 mt-3 text-base font-black leading-tight">{children}</h3>,
+                      p: ({ children }) => <p className="mb-2 leading-relaxed last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+                      ol: ({ children }) => <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
+                      li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                      strong: ({ children }) => <strong className="font-black text-slate-950">{children}</strong>,
+                      em: ({ children }) => <em className="font-semibold italic">{children}</em>,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
               ))}
               {assistantLoading && (
