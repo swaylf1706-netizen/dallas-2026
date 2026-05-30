@@ -343,7 +343,7 @@ function App() {
         ...prev,
         {
           role: "assistant",
-          content: "I couldn’t answer right now. Make sure the API key is saved in Vercel and the latest code is deployed.",
+          content: `Error: ${error.message}`,
         },
       ]);
     } finally {
