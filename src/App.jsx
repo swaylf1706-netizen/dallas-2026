@@ -301,54 +301,108 @@ function App() {
     await signOut(auth);
   };
 
-  const askDallasAssistant = async () => {
-    const message = assistantInput.trim();
-    if (!message || assistantLoading) return;
+  const getDallasLiteAnswer = (question) => {
+    const q = question.toLowerCase();
 
-    const nextMessages = [...assistantMessages, { role: "user", content: message }];
-    setAssistantMessages(nextMessages);
-    setAssistantInput("");
-    setAssistantLoading(true);
+    const confirmed = data.people.filter((person) => person.going);
+    const unconfirmed = data.people.filter((person) => !person.going);
 
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message,
-          tripData: {
-            people: data.people,
-            flights: data.flights,
-            stay: data.stay,
-            cars: data.cars,
-            activities: data.activities,
-            food: data.food,
-            shopping: data.shopping,
-            finalPicks: data.finalPicks,
-            expenses: data.expenses,
-            settlements: data.settlements,
-          },
-        }),
-      });
+    const getVoteScoreLocal = (item) => Object.values(item.votes || {}).reduce((sum, vote) => sum + vote, 0);
 
-      const result = await response.json();
+    const getTopItem = (category) => {
+      const items = data[category] || [];
+      if (!items.length) return null;
+      return [...items].sort((a, b) => getVoteScoreLocal(b) - getVoteScoreLocal(a))[0];
+    };
 
-      if (!response.ok) {
-        throw new Error(result.error || "Dallas Assistant failed.");
-      }
+    const finalPickLines = boardCategories.map((category) => {
+      const selected = (data[category] || []).find((item) => item.id === data.finalPicks?.[category]);
+      return `${labels[category]}: ${selected?.title || "Not selected yet"}`;
+    });
 
-      setAssistantMessages((prev) => [...prev, { role: "assistant", content: result.answer }]);
-    } catch (error) {
-      setAssistantMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `Error: ${error.message}`,
-        },
-      ]);
-    } finally {
-      setAssistantLoading(false);
+    const totalExpenses = data.expenses.reduce((sum, expense) => sum + num(expense.amount), 0);
+
+    if (q.includes("confirm") || q.includes("going") || q.includes("who is coming") || q.includes("who's coming")) {
+      if (!confirmed.length) return "No one is confirmed yet.";
+      return `${confirmed.length} people are confirmed:\n${confirmed.map((person) => `• ${person.name}`).join("\n")}`;
     }
+
+    if (q.includes("not confirmed") || q.includes("unconfirmed")) {
+      if (!unconfirmed.length) return "Everyone on the list is confirmed.";
+      return `${unconfirmed.length} people are not confirmed:\n${unconfirmed.map((person) => `• ${person.name}`).join("\n")}`;
+    }
+
+    if (q.includes("owe") || q.includes("owes") || q.includes("money")) {
+      if (!owedTransactions.length) return "No one owes anyone right now.";
+      return `Current money owed:\n${owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amount)}`).join("\n")}`;
+    }
+
+    if (q.includes("budget") || q.includes("spent") || q.includes("expense") || q.includes("total")) {
+      return `The group has recorded ${currency(totalExpenses)} in expenses. There are ${owedTransactions.length} open payment(s) and ${(data.settlements || []).length} paid-off payment(s).`;
+    }
+
+    if (q.includes("final") || q.includes("pick") || q.includes("selected")) {
+      return `Final picks:\n${finalPickLines.map((line) => `• ${line}`).join("\n")}`;
+    }
+
+    if (q.includes("flight")) {
+      const selected = (data.flights || []).find((item) => item.id === data.finalPicks?.flights);
+      const top = getTopItem("flights");
+      return selected
+        ? `Final flight: ${selected.title || "Untitled flight"}. ${selected.link ? "There is a link attached." : "No link added yet."}`
+        : top
+          ? `No final flight selected yet. Top flight suggestion: ${top.title || "Untitled flight"} with score ${getVoteScoreLocal(top)}.`
+          : "No flight suggestions yet.";
+    }
+
+    if (q.includes("hotel") || q.includes("stay")) {
+      const selected = (data.stay || []).find((item) => item.id === data.finalPicks?.stay);
+      const top = getTopItem("stay");
+      return selected
+        ? `Final stay: ${selected.title || "Untitled stay"}. ${selected.link ? "There is a link attached." : "No link added yet."}`
+        : top
+          ? `No final stay selected yet. Top stay suggestion: ${top.title || "Untitled stay"} with score ${getVoteScoreLocal(top)}.`
+          : "No stay suggestions yet.";
+    }
+
+    if (q.includes("activity") || q.includes("activities")) {
+      const top = getTopItem("activities");
+      return top
+        ? `Top activity suggestion: ${top.title || "Untitled activity"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "activities"))}.`
+        : "No activity suggestions yet.";
+    }
+
+    if (q.includes("food") || q.includes("restaurant") || q.includes("eat")) {
+      const top = getTopItem("food");
+      return top
+        ? `Top food suggestion: ${top.title || "Untitled food option"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "food"))}.`
+        : "No food suggestions yet.";
+    }
+
+    if (q.includes("shopping") || q.includes("shop")) {
+      const top = getTopItem("shopping");
+      return top
+        ? `Top shopping suggestion: ${top.title || "Untitled shopping option"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "shopping"))}.`
+        : "No shopping suggestions yet.";
+    }
+
+    if (q.includes("summary") || q.includes("summarize") || q.includes("plan")) {
+      return `Trip summary:\n• ${confirmed.length} people confirmed\n• Total recorded expenses: ${currency(totalExpenses)}\n• Open payments: ${owedTransactions.length}\n• Final picks:\n${finalPickLines.map((line) => `  - ${line}`).join("\n")}`;
+    }
+
+    return "I can answer things like: who is confirmed, who owes money, total budget, final picks, top activity, top food, top shopping, flight, hotel, or trip summary.";
+  };
+
+  const askDallasAssistant = () => {
+    const message = assistantInput.trim();
+    if (!message) return;
+
+    setAssistantMessages((prev) => [
+      ...prev,
+      { role: "user", content: message },
+      { role: "assistant", content: getDallasLiteAnswer(message) },
+    ]);
+    setAssistantInput("");
   };
 
   const toggleNotifications = () => {
