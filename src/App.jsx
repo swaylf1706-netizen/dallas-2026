@@ -140,6 +140,7 @@ function App() {
   const [active, setActive] = useState("flights");
   const [data, setData] = useState(starter);
   const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [cloudReady, setCloudReady] = useState(false);
   const [newName, setNewName] = useState("");
   const [dark, setDark] = useState(() => localStorage.getItem("dallasDark") === "true");
@@ -196,7 +197,12 @@ function App() {
   }, [dark]);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, setUser);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -754,6 +760,20 @@ function App() {
     : "rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100";
 
   const showSidebar = active !== "budget";
+
+  if (authLoading) {
+    return (
+      <div className={pageClass}>
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className={dark ? "w-full max-w-md rounded-[2rem] border border-white/10 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl" : "w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-2xl"}>
+            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+            <h1 className={dark ? "text-3xl font-black text-white" : "text-3xl font-black text-slate-950"}>Loading Dallas 2026</h1>
+            <p className="mt-2 text-sm font-bold text-slate-400">Checking your Google sign-in...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
