@@ -755,6 +755,36 @@ function App() {
 
   const showSidebar = active !== "budget";
 
+  if (!user) {
+    return (
+      <div className={pageClass}>
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className={dark ? "w-full max-w-md rounded-[2rem] border border-white/10 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl" : "w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-2xl"}>
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-950 text-white">
+              <Lock size={28} />
+            </div>
+            <h1 className={dark ? "text-4xl font-black text-white" : "text-4xl font-black text-slate-950"}>DALLAS 2026</h1>
+            <p className="mt-3 text-sm font-bold text-slate-400">
+              Sign in with Google to view and use the group trip planner.
+            </p>
+            <button
+              onClick={handleLogin}
+              className="mt-6 w-full rounded-2xl bg-indigo-600 px-5 py-4 text-sm font-black text-white shadow-xl shadow-indigo-200 hover:bg-slate-950"
+            >
+              Sign in with Google
+            </button>
+            <button
+              onClick={() => setDark((prev) => !prev)}
+              className={dark ? "mt-4 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black text-white" : "mt-4 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700"}
+            >
+              {dark ? "Light Mode" : "Dark Mode"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={pageClass}>
       <style>{`
@@ -819,7 +849,17 @@ function App() {
               </div>
               <div className="mt-4 flex -space-x-2">
                 {onlineUsers.slice(0, 6).map((person) => (
-                  <img key={person.uid} src={person.photoURL || `https://ui-avatars.com/api/?name=${person.name}`} alt="" title={person.name} className="h-8 w-8 rounded-full border-2 border-white" />
+                  <div key={person.uid} className="group relative">
+                    <img
+                      src={person.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name || "User")}`}
+                      alt={person.name || "Online user"}
+                      title={person.name || "Online user"}
+                      className="h-8 w-8 rounded-full border-2 border-white"
+                    />
+                    <div className="pointer-events-none absolute -top-10 left-1/2 z-[100] hidden -translate-x-1/2 whitespace-nowrap rounded-2xl bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-xl group-hover:block group-focus:block">
+                      {person.name || "Online user"}
+                    </div>
+                  </div>
                 ))}
                 {onlineUsers.length > 0 && <span className="ml-4 text-xs font-black text-emerald-500">{onlineUsers.length} online</span>}
               </div>
