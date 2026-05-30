@@ -18,46 +18,49 @@ export default async function handler(req, res) {
 You are Dallas Assistant for a Dallas 2026 group trip.
 
 Trip Data:
-${JSON.stringify(tripData || {}, null, 2).slice(0, 12000)}
+${JSON.stringify(tripData || {}).slice(0, 12000)}
 
 User Question:
 ${message}
 
 Rules:
 - Keep answers useful and concise.
-- Use trip data whenever possible.
-- You may create itineraries, packing lists, activity suggestions, food ideas, and trip summaries.
-- Do not make up live weather, flight prices, or hotel prices.
+- Use trip data when possible.
+- You can create itineraries, packing lists, activity suggestions, food ideas, and summaries.
+- Do not pretend to know live weather or live prices.
 `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ]
+          contents: [{ parts: [{ text: prompt }] }]
         })
       }
     );
 
-    const data = await response.json();
+    const rawText = await geminiResponse.text();
 
-    if (!response.ok) {
-      return res.status(response.status).json({
+    let data = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      return res.status(500).json({
+        error: `Gemini returned non-JSON response: ${rawText.slice(0, 300)}`
+      });
+    }
+
+    if (!geminiResponse.ok) {
+      return res.status(geminiResponse.status).json({
         error: data.error?.message || "Gemini request failed"
       });
     }
 
     const answer =
       data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "I couldn't generate a response.";
+      "I could not generate a response.";
 
     return res.status(200).json({ answer });
   } catch (error) {
