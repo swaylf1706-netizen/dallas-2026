@@ -324,23 +324,17 @@ function App() {
 
     if (q.includes("confirm") || q.includes("going") || q.includes("who is coming") || q.includes("who's coming")) {
       if (!confirmed.length) return "No one is confirmed yet.";
-      return `${confirmed.length} people are confirmed:
-${confirmed.map((person) => `• ${person.name}`).join("
-")}`;
+      return `${confirmed.length} people are confirmed:\n${confirmed.map((person) => `• ${person.name}`).join("\n")}`;
     }
 
     if (q.includes("not confirmed") || q.includes("unconfirmed")) {
       if (!unconfirmed.length) return "Everyone on the list is confirmed.";
-      return `${unconfirmed.length} people are not confirmed:
-${unconfirmed.map((person) => `• ${person.name}`).join("
-")}`;
+      return `${unconfirmed.length} people are not confirmed:\n${unconfirmed.map((person) => `• ${person.name}`).join("\n")}`;
     }
 
     if (q.includes("owe") || q.includes("owes") || q.includes("money")) {
       if (!owedTransactions.length) return "No one owes anyone right now.";
-      return `Current money owed:
-${owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amount)}`).join("
-")}`;
+      return `Current money owed:\n${owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amount)}`).join("\n")}`;
     }
 
     if (q.includes("budget") || q.includes("spent") || q.includes("expense") || q.includes("total")) {
@@ -348,9 +342,7 @@ ${owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amoun
     }
 
     if (q.includes("final") || q.includes("pick") || q.includes("selected")) {
-      return `Final picks:
-${finalPickLines.map((line) => `• ${line}`).join("
-")}`;
+      return `Final picks:\n${finalPickLines.map((line) => `• ${line}`).join("\n")}`;
     }
 
     if (q.includes("flight")) {
@@ -400,8 +392,7 @@ ${finalPickLines.map((line) => `• ${line}`).join("
 • Total recorded expenses: ${currency(totalExpenses)}
 • Open payments: ${owedTransactions.length}
 • Final picks:
-${finalPickLines.map((line) => `  - ${line}`).join("
-")}`;
+${finalPickLines.map((line) => `  - ${line}`).join("\n")}`;
     }
 
     return null;
