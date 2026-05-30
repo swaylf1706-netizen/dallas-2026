@@ -15,54 +15,54 @@ export default async function handler(req, res) {
     }
 
     const prompt = `
-You are Dallas Assistant, a helpful AI assistant inside a Dallas 2026 group trip planning app.
+You are Dallas Assistant for a Dallas 2026 group trip.
 
-Use the trip data below when possible:
-${JSON.stringify(tripData || {}).slice(0, 12000)}
+Trip Data:
+${JSON.stringify(tripData || {}, null, 2).slice(0, 12000)}
 
-User question:
+User Question:
 ${message}
 
 Rules:
-- Keep answers short and useful.
-- If the question asks about exact app data like who owes money, final picks, confirmed people, or expenses, use the provided trip data.
-- If the question asks for ideas, suggestions, itineraries, packing lists, or planning help, give helpful Dallas trip advice.
-- Do not pretend to know live weather or live prices.
+- Keep answers useful and concise.
+- Use trip data whenever possible.
+- You may create itineraries, packing lists, activity suggestions, food ideas, and trip summaries.
+- Do not make up live weather, flight prices, or hotel prices.
 `;
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: prompt }],
-            },
-          ],
-        }),
+              parts: [{ text: prompt }]
+            }
+          ]
+        })
       }
     );
 
-    const data = await geminiResponse.json();
+    const data = await response.json();
 
-    if (!geminiResponse.ok) {
-      return res.status(geminiResponse.status).json({
-        error: data.error?.message || "Gemini request failed",
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data.error?.message || "Gemini request failed"
       });
     }
 
     const answer =
-      data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "I could not generate a response.";
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "I couldn't generate a response.";
 
     return res.status(200).json({ answer });
   } catch (error) {
     return res.status(500).json({
-      error: error.message || "Server error",
+      error: error.message || "Server error"
     });
   }
 }
