@@ -26,8 +26,9 @@ import {
   Bell,
   CalendarDays,
   Pencil,
-  CloudSun,
-  Lock,
+  Bot,
+  X,
+  Send,
 } from "lucide-react";
 
 const TRIP_START = new Date("2026-07-29T00:00:00");
@@ -97,30 +98,6 @@ const hasPersonPrice = {
   shopping: true,
 };
 
-const weatherCodes = {
-  0: "Clear",
-  1: "Mostly clear",
-  2: "Partly cloudy",
-  3: "Cloudy",
-  45: "Fog",
-  48: "Fog",
-  51: "Drizzle",
-  53: "Drizzle",
-  55: "Drizzle",
-  61: "Rain",
-  63: "Rain",
-  65: "Heavy rain",
-  71: "Snow",
-  73: "Snow",
-  75: "Heavy snow",
-  80: "Rain showers",
-  81: "Rain showers",
-  82: "Heavy showers",
-  95: "Thunderstorms",
-  96: "Thunderstorms",
-  99: "Thunderstorms",
-};
-
 const blankOption = (user) => ({
   id: uid(),
   title: "",
@@ -148,33 +125,14 @@ function normalizeOption(item) {
   };
 }
 
-function getTripCountdown() {
+function getTripCountdownText() {
   const now = new Date();
-  const total = TRIP_END.getTime() - TRIP_START.getTime();
-  const elapsed = now.getTime() - TRIP_START.getTime();
-
   if (now < TRIP_START) {
     const days = Math.ceil((TRIP_START.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return {
-      title: `${days} days until Dallas`,
-      subtitle: "July 29 → August 4",
-      progress: 0,
-    };
+    return `${days} days until Dallas`;
   }
-
-  if (now >= TRIP_START && now <= TRIP_END) {
-    return {
-      title: "Dallas trip is happening now",
-      subtitle: "July 29 → August 4",
-      progress: Math.min(100, Math.max(0, (elapsed / total) * 100)),
-    };
-  }
-
-  return {
-    title: "Dallas trip ended",
-    subtitle: "July 29 → August 4",
-    progress: 100,
-  };
+  if (now >= TRIP_START && now <= TRIP_END) return "Dallas trip is happening now";
+  return "Dallas trip ended";
 }
 
 function App() {
@@ -184,7 +142,6 @@ function App() {
   const [cloudReady, setCloudReady] = useState(false);
   const [newName, setNewName] = useState("");
   const [dark, setDark] = useState(() => localStorage.getItem("dallasDark") === "true");
-  const [weather, setWeather] = useState([]);
   const [expenseDraft, setExpenseDraft] = useState({
     title: "",
     paidBy: "",
@@ -197,18 +154,19 @@ function App() {
   const [processingPaymentKey, setProcessingPaymentKey] = useState("");
   const [showNotifications, setShowNotifications] = useState(true);
   const [lastSeenNotificationTime, setLastSeenNotificationTime] = useState(0);
-
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantInput, setAssistantInput] = useState("");
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantMessages, setAssistantMessages] = useState([
+    {
+      role: "assistant",
+      content: "Hey, I’m Dallas Assistant. Ask me about the trip plan, budget, final picks, or ideas for the itinerary.",
+    },
+  ]);
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
 
   const tripDoc = useMemo(() => doc(db, "trips", "dallas-2026"), []);
-  const countdown = getTripCountdown();
-
-  const requireUser = () => {
-    if (user) return true;
-    alert("Please sign in with Google to make changes.");
-    return false;
-  };
 
   const mergeData = (cloudData) => ({
     ...starter,
@@ -236,28 +194,8 @@ function App() {
     localStorage.setItem("dallasDark", String(dark));
   }, [dark]);
 
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
-
   useEffect(() => {
-    fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=32.7767&longitude=-96.7970&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&timezone=America%2FChicago&forecast_days=7"
-    )
-      .then((res) => res.json())
-      .then((result) => {
-        const daily = result.daily;
-        if (!daily) return;
-
-        setWeather(
-          daily.time.map((date, index) => ({
-            date,
-            high: Math.round(daily.temperature_2m_max[index]),
-            low: Math.round(daily.temperature_2m_min[index]),
-            rain: daily.precipitation_probability_max[index] ?? 0,
-            code: daily.weather_code[index],
-          }))
-        );
-      })
-      .catch(() => setWeather([]));
+    return onAuthStateChanged(auth, setUser);
   }, []);
 
   useEffect(() => {
@@ -291,6 +229,31 @@ function App() {
     return unsubscribe;
   }, [tripDoc]);
 
+  const writeData = async (nextData) => {
+    const writeTime = Date.now();
+    latestLocalWrite.current = writeTime;
+    setData(nextData);
+
+    if (!cloudReady) return;
+
+    await setDoc(
+      tripDoc,
+      {
+        data: nextData,
+        clientUpdatedAt: writeTime,
+        updatedAt: serverTimestamp(),
+        updatedBy: user
+          ? {
+              uid: user.uid,
+              name: user.displayName,
+              email: user.email,
+            }
+          : null,
+      },
+      { merge: true }
+    );
+  };
+
   const updateData = (updater) => {
     setData((prev) => {
       const nextData = updater(prev);
@@ -320,15 +283,73 @@ function App() {
     });
   };
 
-  const notifyInside = (prev, message) => ({
-    id: uid(),
-    message,
-    name: user?.displayName || "Someone",
-    createdAt: Date.now(),
-  });
+  const notify = (message) => {
+    updateData((prev) => ({
+      ...prev,
+      notifications: [
+        { id: uid(), message, name: user?.displayName || "Someone", createdAt: Date.now() },
+        ...(prev.notifications || []),
+      ].slice(0, 8),
+    }));
+  };
 
-  const handleLogin = async () => signInWithPopup(auth, provider);
-  const handleLogout = async () => signOut(auth);
+  const handleLogin = async () => {
+    await signInWithPopup(auth, provider);
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
+  const askDallasAssistant = async () => {
+    const message = assistantInput.trim();
+    if (!message || assistantLoading) return;
+
+    const nextMessages = [...assistantMessages, { role: "user", content: message }];
+    setAssistantMessages(nextMessages);
+    setAssistantInput("");
+    setAssistantLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          tripData: {
+            people: data.people,
+            flights: data.flights,
+            stay: data.stay,
+            cars: data.cars,
+            activities: data.activities,
+            food: data.food,
+            shopping: data.shopping,
+            finalPicks: data.finalPicks,
+            expenses: data.expenses,
+            settlements: data.settlements,
+          },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Dallas Assistant failed.");
+      }
+
+      setAssistantMessages((prev) => [...prev, { role: "assistant", content: result.answer }]);
+    } catch (error) {
+      setAssistantMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "I couldn’t answer right now. Make sure the API key is saved in Vercel and the latest code is deployed.",
+        },
+      ]);
+    } finally {
+      setAssistantLoading(false);
+    }
+  };
 
   const toggleNotifications = () => {
     setShowNotifications((prev) => !prev);
@@ -336,7 +357,6 @@ function App() {
   };
 
   const clearNotifications = () => {
-    if (!requireUser()) return;
     updateData((prev) => ({ ...prev, notifications: [] }));
     setLastSeenNotificationTime(Date.now());
   };
@@ -344,7 +364,7 @@ function App() {
   const confirmedPeople = data.people.filter((person) => person.going).length;
   const headcount = Math.max(1, confirmedPeople);
   const currentItems = boardCategories.includes(active) ? data[active] || [] : [];
-  const onlineUsers = Object.values(data.presence || {}).filter((person) => Date.now() - num(person.lastSeen) < 180000);
+  const onlineUsers = Object.values(data.presence || {}).filter((person) => Date.now() - num(person.lastSeen) < 90000);
   const unreadNotifications = (data.notifications || []).filter((note) => num(note.createdAt) > lastSeenNotificationTime).length;
 
   const updatePresence = () => {
@@ -371,18 +391,20 @@ function App() {
   }, [user, cloudReady]);
 
   const addPerson = () => {
-    if (!requireUser()) return;
     const cleanName = newName.trim();
     if (!cleanName) return;
 
     updateData((prev) => {
-      const exists = prev.people.some((person) => person.name.toLowerCase() === cleanName.toLowerCase());
-      if (exists) return prev;
+      const alreadyExists = prev.people.some((person) => person.name.toLowerCase() === cleanName.toLowerCase());
+      if (alreadyExists) return prev;
 
       return {
         ...prev,
-        people: [...prev.people, { id: uid(), name: cleanName, going: true }],
-        notifications: [notifyInside(prev, `added ${cleanName} to the going list`), ...(prev.notifications || [])].slice(0, 8),
+        people: [...prev.people, { id: uid(), name: cleanName, going: true, paid: 0 }],
+        notifications: [
+          { id: uid(), message: `added ${cleanName} to the going list`, name: user?.displayName || "Someone", createdAt: Date.now() },
+          ...(prev.notifications || []),
+        ].slice(0, 8),
       };
     });
 
@@ -390,38 +412,26 @@ function App() {
   };
 
   const togglePerson = (id) => {
-    if (!requireUser()) return;
     updateData((prev) => ({
       ...prev,
-      people: prev.people.map((person) => (person.id === id ? { ...person, going: !person.going } : person)),
+      people: prev.people.map((person) =>
+        person.id === id ? { ...person, going: !person.going } : person
+      ),
     }));
   };
 
   const removePerson = (id) => {
-    if (!requireUser()) return;
-    updateData((prev) => {
-      const person = prev.people.find((p) => p.id === id);
-      return {
-        ...prev,
-        people: prev.people.filter((person) => person.id !== id),
-        notifications: person
-          ? [notifyInside(prev, `removed ${person.name} from the going list`), ...(prev.notifications || [])].slice(0, 8)
-          : prev.notifications,
-      };
-    });
+    const person = data.people.find((p) => p.id === id);
+    updateData((prev) => ({ ...prev, people: prev.people.filter((person) => person.id !== id) }));
+    if (person) notify(`removed ${person.name} from the going list`);
   };
 
   const addOption = () => {
-    if (!requireUser()) return;
-    updateData((prev) => ({
-      ...prev,
-      [active]: [...prev[active], blankOption(user)],
-      notifications: [notifyInside(prev, `added a ${labels[active]} suggestion`), ...(prev.notifications || [])].slice(0, 8),
-    }));
+    updateData((prev) => ({ ...prev, [active]: [...prev[active], blankOption(user)] }));
+    notify(`added a ${labels[active]} suggestion`);
   };
 
   const updateOption = (id, field, value) => {
-    if (!requireUser()) return;
     updateData((prev) => ({
       ...prev,
       [active]: prev[active].map((item) => (item.id === id ? { ...item, [field]: value } : item)),
@@ -429,19 +439,18 @@ function App() {
   };
 
   const saveOption = (id) => {
-    if (!requireUser()) return;
-    updateData((prev) => {
-      const item = prev[active].find((x) => x.id === id);
-      return {
-        ...prev,
-        [active]: prev[active].map((item) => (item.id === id ? { ...item, saved: true } : item)),
-        notifications: [notifyInside(prev, `saved ${item?.title || labels[active] + " suggestion"}`), ...(prev.notifications || [])].slice(0, 8),
-      };
-    });
+    const item = currentItems.find((x) => x.id === id);
+    updateData((prev) => ({
+      ...prev,
+      [active]: prev[active].map((item) => (item.id === id ? { ...item, saved: true } : item)),
+      notifications: [
+        { id: uid(), message: `saved ${item?.title || labels[active] + " suggestion"}`, name: user?.displayName || "Someone", createdAt: Date.now() },
+        ...(prev.notifications || []),
+      ].slice(0, 8),
+    }));
   };
 
   const editSavedOption = (id) => {
-    if (!requireUser()) return;
     updateData((prev) => ({
       ...prev,
       [active]: prev[active].map((item) => (item.id === id ? { ...item, saved: false } : item)),
@@ -449,16 +458,12 @@ function App() {
   };
 
   const removeOption = (id) => {
-    if (!requireUser()) return;
-    updateData((prev) => ({
-      ...prev,
-      [active]: prev[active].filter((item) => item.id !== id),
-      notifications: [notifyInside(prev, `deleted a ${labels[active]} suggestion`), ...(prev.notifications || [])].slice(0, 8),
-    }));
+    updateData((prev) => ({ ...prev, [active]: prev[active].filter((item) => item.id !== id) }));
+    notify(`deleted a ${labels[active]} suggestion`);
   };
 
   const voteOption = (id, vote) => {
-    if (!requireUser()) return;
+    if (!user) return;
     updateData((prev) => ({
       ...prev,
       [active]: prev[active].map((item) => {
@@ -473,9 +478,7 @@ function App() {
   };
 
   const addComment = (optionId, category, text) => {
-    if (!requireUser()) return;
     if (!text.trim()) return;
-
     updateData((prev) => ({
       ...prev,
       [category]: prev[category].map((item) =>
@@ -494,12 +497,14 @@ function App() {
             }
           : item
       ),
-      notifications: [notifyInside(prev, `commented on a ${labels[category]} suggestion`), ...(prev.notifications || [])].slice(0, 8),
+      notifications: [
+        { id: uid(), message: `commented on a ${labels[category]} suggestion`, name: user?.displayName || "Someone", createdAt: Date.now() },
+        ...(prev.notifications || []),
+      ].slice(0, 8),
     }));
   };
 
   const removeComment = (optionId, category, commentId) => {
-    if (!requireUser()) return;
     updateData((prev) => ({
       ...prev,
       [category]: prev[category].map((item) =>
@@ -529,7 +534,6 @@ function App() {
   const activeTotal = currentItems.reduce((sum, item) => sum + getGroupTotal(item), 0);
 
   const setFinalPick = (category, optionId) => {
-    if (!requireUser()) return;
     updateData((prev) => ({
       ...prev,
       finalPicks: { ...prev.finalPicks, [category]: optionId },
@@ -550,13 +554,15 @@ function App() {
   const grandPP = grandTotal / headcount;
 
   const addExpense = () => {
-    if (!requireUser()) return;
-
     const includedPeople = expenseDraft.includedPeople.length
       ? expenseDraft.includedPeople
       : data.people.filter((person) => person.going).map((person) => person.name);
 
-    const manualTotal = includedPeople.reduce((sum, name) => sum + num(expenseDraft.manualSplits?.[name]), 0);
+    const manualTotal = includedPeople.reduce(
+      (sum, name) => sum + num(expenseDraft.manualSplits?.[name]),
+      0
+    );
+
     const finalAmount = expenseDraft.splitMode === "manual" ? manualTotal : num(expenseDraft.amount);
 
     if (!expenseDraft.title.trim() || finalAmount <= 0 || !expenseDraft.paidBy || includedPeople.length === 0) return;
@@ -573,7 +579,10 @@ function App() {
           createdAt: Date.now(),
         },
       ],
-      notifications: [notifyInside(prev, `added an expense: ${expenseDraft.title}`), ...(prev.notifications || [])].slice(0, 8),
+      notifications: [
+        { id: uid(), message: `added an expense: ${expenseDraft.title}`, name: user?.displayName || "Someone", createdAt: Date.now() },
+        ...(prev.notifications || []),
+      ].slice(0, 8),
     }));
 
     setExpenseDraft({
@@ -588,23 +597,22 @@ function App() {
   };
 
   const removeExpense = (id) => {
-    if (!requireUser()) return;
     updateData((prev) => ({ ...prev, expenses: prev.expenses.filter((expense) => expense.id !== id) }));
   };
 
   const toggleExpensePerson = (name) => {
-    if (!requireUser()) return;
     setExpenseDraft((prev) => {
       const included = prev.includedPeople.includes(name);
       return {
         ...prev,
-        includedPeople: included ? prev.includedPeople.filter((personName) => personName !== name) : [...prev.includedPeople, name],
+        includedPeople: included
+          ? prev.includedPeople.filter((personName) => personName !== name)
+          : [...prev.includedPeople, name],
       };
     });
   };
 
   const updateManualSplit = (name, value) => {
-    if (!requireUser()) return;
     setExpenseDraft((prev) => ({
       ...prev,
       manualSplits: {
@@ -616,36 +624,55 @@ function App() {
 
   const getPaymentKey = (tx) => `${tx.from}-${tx.to}-${Math.round(num(tx.amount) * 100)}`;
 
-  const markTransactionPaid = (tx) => {
-    if (!requireUser()) return;
+  const markTransactionPaid = async (tx) => {
+    if (!user) return;
 
     const paymentKey = getPaymentKey(tx);
     if (processingPaymentKey === paymentKey) return;
 
     setProcessingPaymentKey(paymentKey);
 
-    updateData((prev) => ({
-      ...prev,
-      settlements: [
-        ...(prev.settlements || []),
-        {
-          id: uid(),
-          paymentKey,
-          from: tx.from,
-          to: tx.to,
-          amount: Math.round(num(tx.amount) * 100) / 100,
-          createdAt: Date.now(),
-          markedBy: user?.displayName || "Someone",
-        },
-      ],
-      notifications: [notifyInside(prev, `marked ${tx.from}'s payment to ${tx.to} as paid`), ...(prev.notifications || [])].slice(0, 8),
-    }));
+    const settlement = {
+      id: uid(),
+      paymentKey,
+      from: tx.from,
+      to: tx.to,
+      amount: Math.round(num(tx.amount) * 100) / 100,
+      createdAt: Date.now(),
+      markedBy: user?.displayName || "Someone",
+    };
 
-    setTimeout(() => setProcessingPaymentKey(""), 800);
+    const nextData = {
+      ...data,
+      settlements: [...(data.settlements || []), settlement],
+      notifications: [
+        { id: uid(), message: `marked ${tx.from}'s payment to ${tx.to} as paid`, name: user?.displayName || "Someone", createdAt: Date.now() },
+        ...(data.notifications || []),
+      ].slice(0, 8),
+    };
+
+    writeData(nextData);
+
+    try {
+      await setDoc(
+        tripDoc,
+        {
+          data: nextData,
+          updatedAt: serverTimestamp(),
+          updatedBy: {
+            uid: user.uid,
+            name: user.displayName,
+            email: user.email,
+          },
+        },
+        { merge: true }
+      );
+    } finally {
+      setProcessingPaymentKey("");
+    }
   };
 
   const undoSettlement = (id) => {
-    if (!requireUser()) return;
     updateData((prev) => ({
       ...prev,
       settlements: (prev.settlements || []).filter((settlement) => settlement.id !== id),
@@ -653,6 +680,7 @@ function App() {
   };
 
   const totalPaid = data.expenses.reduce((sum, expense) => sum + num(expense.amount), 0);
+
   const paidByPerson = {};
   const shareByPerson = {};
 
@@ -737,7 +765,6 @@ function App() {
         .mobile-card-motion:active { transform: scale(0.99); }
         @media (hover: hover) { .mobile-card-motion:hover { transform: translateY(-4px); } }
       `}</style>
-
       <header className={dark ? "sticky top-0 z-50 border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl" : "sticky top-0 z-50 border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl"}>
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:px-8">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
@@ -745,31 +772,16 @@ function App() {
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-indigo-700">
                 <MapPin size={13} /> Group Trip Planner
               </div>
-
               <div className="flex flex-wrap items-end gap-4">
-                <h1 className={dark ? "text-4xl font-black tracking-[-0.04em] text-white md:text-6xl" : "text-4xl font-black tracking-[-0.04em] text-slate-950 md:text-6xl"}>
-                  DALLAS 2026
-                </h1>
-              </div>
-
-              <div className="mt-4 grid max-w-3xl gap-3 md:grid-cols-[1fr_1.1fr]">
-                <div className="rounded-[1.5rem] bg-gradient-to-br from-indigo-600 to-slate-950 p-4 text-white shadow-xl shadow-indigo-200">
-                  <div className="flex items-center gap-2 text-sm font-black">
-                    <CalendarDays size={18} /> {countdown.title}
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-indigo-100">{countdown.subtitle}</p>
-                  <div className="mt-3 h-2 rounded-full bg-white/20">
-                    <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${countdown.progress}%` }} />
-                  </div>
+                <h1 className={dark ? "text-4xl font-black tracking-[-0.04em] text-white md:text-6xl" : "text-4xl font-black tracking-[-0.04em] text-slate-950 md:text-6xl"}>DALLAS 2026</h1>
+                <div className="mb-1 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-black text-white shadow-lg shadow-indigo-300">
+                  <CalendarDays size={17} /> {getTripCountdownText()}
                 </div>
-
-                <WeatherCard weather={weather} dark={dark} />
               </div>
-
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 {!user ? (
-                  <button onClick={handleLogin} className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-slate-300 transition hover:bg-indigo-700">
-                    <Lock size={16} /> Sign in with Google to edit
+                  <button onClick={handleLogin} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg shadow-slate-300 transition hover:bg-indigo-700">
+                    Sign in with Google
                   </button>
                 ) : (
                   <div className={dark ? "flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 shadow-sm" : "flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"}>
@@ -807,12 +819,7 @@ function App() {
               </div>
               <div className="mt-4 flex -space-x-2">
                 {onlineUsers.slice(0, 6).map((person) => (
-                  <div key={person.uid} className="group relative">
-                    <img src={person.photoURL || `https://ui-avatars.com/api/?name=${person.name}`} alt={person.name} title={person.name} className="h-8 w-8 rounded-full border-2 border-white" />
-                    <span className="pointer-events-none absolute -top-9 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-xl bg-slate-950 px-3 py-1 text-xs font-black text-white shadow-lg group-hover:block">
-                      {person.name}
-                    </span>
-                  </div>
+                  <img key={person.uid} src={person.photoURL || `https://ui-avatars.com/api/?name=${person.name}`} alt="" title={person.name} className="h-8 w-8 rounded-full border-2 border-white" />
                 ))}
                 {onlineUsers.length > 0 && <span className="ml-4 text-xs font-black text-emerald-500">{onlineUsers.length} online</span>}
               </div>
@@ -843,18 +850,10 @@ function App() {
           <aside className={panelClass}>
             <h2 className="text-2xl font-black">Who’s Going?</h2>
             <p className="mt-1 text-sm font-semibold text-slate-400">Add names and confirm who is going.</p>
-
-            {!user && (
-              <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-xs font-black text-amber-700">
-                Sign in to make changes.
-              </div>
-            )}
-
             <div className="mt-5 flex gap-2">
               <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addPerson()} placeholder="Add name" className={`${inputClass} min-w-0 flex-1`} />
               <button onClick={addPerson} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Add</button>
             </div>
-
             <div className="mt-5 space-y-3">
               {data.people.map((person) => {
                 const balance = personBalances.find((p) => p.id === person.id);
@@ -916,27 +915,8 @@ function App() {
             </div>
 
             <div className="grid gap-8">
-              {savedItems.length > 0 && (
-                <div className="space-y-5">
-                  <div className="flex items-center gap-2"><CheckCircle2 className="text-indigo-500" size={21} /><h3 className="text-xl font-black">Saved Picks</h3></div>
-                  {savedItems.map((item, index) => (
-                    <SavedSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} user={user} dark={dark} editSavedOption={editSavedOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-5">
-                <h3 className="text-xl font-black">Draft Suggestions</h3>
-                {draftItems.length === 0 && (
-                  <div className={dark ? "rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center" : "rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"}>
-                    <p className="text-lg font-black">No draft suggestions.</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-400">Click Add Suggestion to add one.</p>
-                  </div>
-                )}
-                {draftItems.map((item, index) => (
-                  <DraftSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} hasPersonPrice={hasPersonPrice} inputClass={inputClass} dark={dark} user={user} updateOption={updateOption} saveOption={saveOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />
-                ))}
-              </div>
+              {savedItems.length > 0 && <div className="space-y-5"><div className="flex items-center gap-2"><CheckCircle2 className="text-indigo-500" size={21} /><h3 className="text-xl font-black">Saved Picks</h3></div>{savedItems.map((item, index) => <SavedSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} user={user} dark={dark} editSavedOption={editSavedOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />)}</div>}
+              <div className="space-y-5"><h3 className="text-xl font-black">Draft Suggestions</h3>{draftItems.length === 0 && <div className={dark ? "rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center" : "rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"}><p className="text-lg font-black">No draft suggestions.</p><p className="mt-1 text-sm font-semibold text-slate-400">Click Add Suggestion to add one.</p></div>}{draftItems.map((item, index) => <DraftSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} hasPersonPrice={hasPersonPrice} inputClass={inputClass} dark={dark} user={user} updateOption={updateOption} saveOption={saveOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />)}</div>
             </div>
           </section>
         )}
@@ -957,11 +937,7 @@ function App() {
                 </div>
               ))}
             </div>
-            <div className="mt-6 rounded-[2rem] bg-[radial-gradient(circle_at_top_left,#4f46e5,#111827_48%,#020617)] p-7 text-white">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-100">Grand Total</p>
-              <p className="mt-3 text-5xl font-black">{currency(grandTotal)}</p>
-              <p className="mt-2 text-xl font-black text-emerald-300">{currency(grandPP)} per person</p>
-            </div>
+            <div className="mt-6 rounded-[2rem] bg-[radial-gradient(circle_at_top_left,#4f46e5,#111827_48%,#020617)] p-7 text-white"><p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-100">Grand Total</p><p className="mt-3 text-5xl font-black">{currency(grandTotal)}</p><p className="mt-2 text-xl font-black text-emerald-300">{currency(grandPP)} per person</p></div>
           </section>
         )}
 
@@ -972,26 +948,58 @@ function App() {
                 <Wallet className="text-emerald-500" />
                 <div>
                   <h2 className="text-3xl font-black">Budget Tracker</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-400">Add equal split expenses or custom manual splits.</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-400">
+                    Add equal split expenses or custom manual splits.
+                  </p>
                 </div>
               </div>
             </div>
 
             <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
               <div className="grid gap-4 md:grid-cols-4">
-                <input value={expenseDraft.title} onChange={(e) => setExpenseDraft({ ...expenseDraft, title: e.target.value })} placeholder="Expense name" className={inputClass} />
-                <select value={expenseDraft.paidBy} onChange={(e) => setExpenseDraft({ ...expenseDraft, paidBy: e.target.value })} className={inputClass}>
+                <input
+                  value={expenseDraft.title}
+                  onChange={(e) => setExpenseDraft({ ...expenseDraft, title: e.target.value })}
+                  placeholder="Expense name"
+                  className={inputClass}
+                />
+
+                <select
+                  value={expenseDraft.paidBy}
+                  onChange={(e) => setExpenseDraft({ ...expenseDraft, paidBy: e.target.value })}
+                  className={inputClass}
+                >
                   <option value="">Paid by</option>
-                  {data.people.map((person) => <option key={person.id} value={person.name}>{person.name}</option>)}
+                  {data.people.map((person) => (
+                    <option key={person.id} value={person.name}>{person.name}</option>
+                  ))}
                 </select>
-                <select value={expenseDraft.splitMode} onChange={(e) => setExpenseDraft({ ...expenseDraft, splitMode: e.target.value })} className={inputClass}>
+
+                <select
+                  value={expenseDraft.splitMode}
+                  onChange={(e) => setExpenseDraft({ ...expenseDraft, splitMode: e.target.value })}
+                  className={inputClass}
+                >
                   <option value="equal">Equal Split</option>
                   <option value="manual">Manual Split</option>
                 </select>
-                <input type="number" value={expenseDraft.amount} onChange={(e) => setExpenseDraft({ ...expenseDraft, amount: e.target.value })} placeholder={expenseDraft.splitMode === "manual" ? "Auto from manual" : "Total amount"} disabled={expenseDraft.splitMode === "manual"} className={`${inputClass} disabled:opacity-50`} />
+
+                <input
+                  type="number"
+                  value={expenseDraft.amount}
+                  onChange={(e) => setExpenseDraft({ ...expenseDraft, amount: e.target.value })}
+                  placeholder={expenseDraft.splitMode === "manual" ? "Auto from manual" : "Total amount"}
+                  disabled={expenseDraft.splitMode === "manual"}
+                  className={`${inputClass} disabled:opacity-50`}
+                />
               </div>
 
-              <input value={expenseDraft.notes} onChange={(e) => setExpenseDraft({ ...expenseDraft, notes: e.target.value })} placeholder="Notes" className={`${inputClass} mt-4 w-full`} />
+              <input
+                value={expenseDraft.notes}
+                onChange={(e) => setExpenseDraft({ ...expenseDraft, notes: e.target.value })}
+                placeholder="Notes"
+                className={`${inputClass} mt-4 w-full`}
+              />
 
               <div className="mt-5">
                 <p className="mb-3 text-sm font-black text-slate-600">Who was included?</p>
@@ -999,37 +1007,72 @@ function App() {
                   {data.people.map((person) => {
                     const selected = expenseDraft.includedPeople.includes(person.name);
                     return (
-                      <button key={person.id} onClick={() => toggleExpensePerson(person.name)} className={selected ? "rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-black text-white" : "rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-600"}>
+                      <button
+                        key={person.id}
+                        onClick={() => toggleExpensePerson(person.name)}
+                        className={
+                          selected
+                            ? "rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"
+                            : "rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-600"
+                        }
+                      >
                         {person.name}
                       </button>
                     );
                   })}
                 </div>
-                <p className="mt-2 text-xs font-bold text-slate-400">If nobody is selected, the expense applies to all confirmed people.</p>
+                <p className="mt-2 text-xs font-bold text-slate-400">
+                  If nobody is selected, the expense applies to all confirmed people.
+                </p>
               </div>
 
               {expenseDraft.splitMode === "manual" && (
                 <div className="mt-5 rounded-3xl bg-white p-4">
                   <p className="mb-3 text-sm font-black text-slate-600">Manual amounts</p>
                   <div className="grid gap-3 md:grid-cols-2">
-                    {(expenseDraft.includedPeople.length ? expenseDraft.includedPeople : data.people.filter((person) => person.going).map((person) => person.name)).map((name) => (
+                    {(expenseDraft.includedPeople.length
+                      ? expenseDraft.includedPeople
+                      : data.people.filter((person) => person.going).map((person) => person.name)
+                    ).map((name) => (
                       <div key={name} className="grid grid-cols-[1fr_140px] items-center gap-3">
                         <p className="text-sm font-black text-slate-700">{name}</p>
-                        <input type="number" value={expenseDraft.manualSplits?.[name] || ""} onChange={(e) => updateManualSplit(name, e.target.value)} placeholder="$0" className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 outline-none" />
+                        <input
+                          type="number"
+                          value={expenseDraft.manualSplits?.[name] || ""}
+                          onChange={(e) => updateManualSplit(name, e.target.value)}
+                          placeholder="$0"
+                          className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 outline-none"
+                        />
                       </div>
                     ))}
                   </div>
-                  <p className="mt-3 text-sm font-black text-emerald-700">Manual total: {currency(Object.values(expenseDraft.manualSplits || {}).reduce((sum, value) => sum + num(value), 0))}</p>
+                  <p className="mt-3 text-sm font-black text-emerald-700">
+                    Manual total: {currency(Object.values(expenseDraft.manualSplits || {}).reduce((sum, value) => sum + num(value), 0))}
+                  </p>
                 </div>
               )}
 
-              <button onClick={addExpense} className="mt-5 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white">Add Expense</button>
+              <button
+                onClick={addExpense}
+                className="mt-5 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white"
+              >
+                Add Expense
+              </button>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl bg-emerald-50 p-5"><p className="text-xs font-black uppercase text-emerald-700">Total Paid</p><p className="mt-2 text-3xl font-black text-emerald-700">{currency(totalPaid)}</p></div>
-              <div className="rounded-3xl bg-indigo-50 p-5"><p className="text-xs font-black uppercase text-indigo-700">Open Payments</p><p className="mt-2 text-3xl font-black text-indigo-700">{owedTransactions.length}</p></div>
-              <div className="rounded-3xl bg-slate-950 p-5 text-white"><p className="text-xs font-black uppercase text-slate-300">Paid Off</p><p className="mt-2 text-3xl font-black">{(data.settlements || []).length}</p></div>
+              <div className="rounded-3xl bg-emerald-50 p-5">
+                <p className="text-xs font-black uppercase text-emerald-700">Total Paid</p>
+                <p className="mt-2 text-3xl font-black text-emerald-700">{currency(totalPaid)}</p>
+              </div>
+              <div className="rounded-3xl bg-indigo-50 p-5">
+                <p className="text-xs font-black uppercase text-indigo-700">Open Payments</p>
+                <p className="mt-2 text-3xl font-black text-indigo-700">{owedTransactions.length}</p>
+              </div>
+              <div className="rounded-3xl bg-slate-950 p-5 text-white">
+                <p className="text-xs font-black uppercase text-slate-300">Paid Off</p>
+                <p className="mt-2 text-3xl font-black">{(data.settlements || []).length}</p>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-4">
@@ -1039,8 +1082,12 @@ function App() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-black">{expense.title}</p>
-                      <p className="text-sm font-semibold text-slate-400">Paid by {expense.paidBy || "Unknown"} · {expense.splitMode === "manual" ? "Manual split" : "Equal split"}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-400">Included: {(expense.includedPeople?.length ? expense.includedPeople : data.people.filter((person) => person.going).map((person) => person.name)).join(", ")}</p>
+                      <p className="text-sm font-semibold text-slate-400">
+                        Paid by {expense.paidBy || "Unknown"} · {expense.splitMode === "manual" ? "Manual split" : "Equal split"}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">
+                        Included: {(expense.includedPeople?.length ? expense.includedPeople : data.people.filter((person) => person.going).map((person) => person.name)).join(", ")}
+                      </p>
                       {expense.notes && <p className="mt-2 text-sm font-semibold text-slate-500">{expense.notes}</p>}
                     </div>
                     <div className="flex items-center gap-3">
@@ -1055,15 +1102,24 @@ function App() {
             <div className="mt-8">
               <h3 className="mb-4 text-2xl font-black">Owed Money Tracker</h3>
               <div className="grid gap-4 md:grid-cols-2">
-                {owedTransactions.length === 0 && <div className="rounded-3xl bg-emerald-50 p-5 text-sm font-black text-emerald-700">No one owes anyone right now.</div>}
+                {owedTransactions.length === 0 && (
+                  <div className="rounded-3xl bg-emerald-50 p-5 text-sm font-black text-emerald-700">
+                    No one owes anyone right now.
+                  </div>
+                )}
                 {owedTransactions.map((tx, index) => {
                   const paymentKey = getPaymentKey(tx);
                   const isProcessing = processingPaymentKey === paymentKey;
+
                   return (
                     <div key={`${tx.from}-${tx.to}-${index}`} className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-5" : "rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
                       <p className="text-lg font-black">{tx.from} owes {tx.to}</p>
                       <p className="mt-2 text-3xl font-black text-red-500">{currency(tx.amount)}</p>
-                      <button onClick={() => markTransactionPaid(tx)} disabled={isProcessing} className="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
+                      <button
+                        onClick={() => markTransactionPaid(tx)}
+                        disabled={isProcessing}
+                        className="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
                         {isProcessing ? "Marking Paid..." : "Mark as Paid"}
                       </button>
                     </div>
@@ -1075,7 +1131,11 @@ function App() {
             <div className="mt-8">
               <h3 className="mb-4 text-2xl font-black">Payment History</h3>
               <div className="grid gap-4">
-                {(data.settlements || []).length === 0 && <div className="rounded-3xl bg-slate-50 p-5 text-sm font-black text-slate-500">No paid-off payments yet.</div>}
+                {(data.settlements || []).length === 0 && (
+                  <div className="rounded-3xl bg-slate-50 p-5 text-sm font-black text-slate-500">
+                    No paid-off payments yet.
+                  </div>
+                )}
                 {(data.settlements || []).map((settlement) => (
                   <div key={settlement.id} className={dark ? "flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 p-5" : "flex items-center justify-between rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
                     <div>
@@ -1084,7 +1144,9 @@ function App() {
                     </div>
                     <div className="flex items-center gap-3">
                       <p className="font-black text-emerald-600">{currency(settlement.amount)}</p>
-                      <button onClick={() => undoSettlement(settlement.id)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">Undo</button>
+                      <button onClick={() => undoSettlement(settlement.id)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">
+                        Undo
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1093,37 +1155,68 @@ function App() {
           </section>
         )}
       </main>
-    </div>
-  );
-}
 
-function WeatherCard({ weather, dark }) {
-  const today = weather[0];
+      <button
+        onClick={() => setAssistantOpen(true)}
+        className="fixed bottom-5 right-5 z-[60] inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_18px_60px_rgba(15,23,42,0.35)] hover:bg-indigo-700"
+      >
+        <Bot size={20} /> Dallas AI
+      </button>
 
-  return (
-    <div className={dark ? "rounded-[1.5rem] border border-white/10 bg-white/10 p-4 text-white" : "rounded-[1.5rem] border border-slate-200 bg-white p-4 text-slate-950 shadow-sm"}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-black">
-          <CloudSun size={18} className="text-amber-500" /> Dallas Weather
-        </div>
-        {today && <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">{weatherCodes[today.code] || "Forecast"}</span>}
-      </div>
-
-      {weather.length === 0 ? (
-        <p className="text-xs font-bold text-slate-400">Loading 7-day forecast...</p>
-      ) : (
-        <div className="grid grid-cols-7 gap-2">
-          {weather.map((day) => {
-            const label = new Date(`${day.date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" });
-            return (
-              <div key={day.date} className={dark ? "rounded-2xl bg-white/10 p-2 text-center" : "rounded-2xl bg-slate-50 p-2 text-center"}>
-                <p className="text-[10px] font-black text-slate-400">{label}</p>
-                <p className="mt-1 text-sm font-black">{day.high}°</p>
-                <p className="text-[11px] font-bold text-slate-400">{day.low}°</p>
-                <p className="mt-1 text-[10px] font-black text-blue-500">{day.rain}%</p>
+      {assistantOpen && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/40 backdrop-blur-sm md:flex md:items-end md:justify-end md:p-6">
+          <div className={dark ? "flex h-full w-full flex-col bg-slate-950 text-white md:h-[720px] md:max-w-md md:rounded-[2rem] md:border md:border-white/10 md:shadow-2xl" : "flex h-full w-full flex-col bg-white text-slate-950 md:h-[720px] md:max-w-md md:rounded-[2rem] md:border md:border-slate-200 md:shadow-2xl"}>
+            <div className="flex items-center justify-between border-b border-slate-200/20 p-5">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">
+                  <Bot size={14} /> Dallas Assistant
+                </div>
+                <h2 className="mt-2 text-2xl font-black">Ask about the trip</h2>
               </div>
-            );
-          })}
+              <button onClick={() => setAssistantOpen(false)} className="rounded-2xl bg-slate-100 p-3 text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-5">
+              {assistantMessages.map((msg, index) => (
+                <div key={index} className={msg.role === "user" ? "ml-auto max-w-[85%] rounded-3xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white" : "mr-auto max-w-[85%] rounded-3xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-700"}>
+                  {msg.content}
+                </div>
+              ))}
+              {assistantLoading && (
+                <div className="mr-auto max-w-[85%] rounded-3xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-500">
+                  Thinking...
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200/20 p-4">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {["Who owes money?", "Summarize final picks", "Make a simple itinerary"].map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => setAssistantInput(prompt)}
+                    className="rounded-full bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={assistantInput}
+                  onChange={(e) => setAssistantInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && askDallasAssistant()}
+                  placeholder="Ask Dallas Assistant..."
+                  className={dark ? "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none" : "min-w-0 flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none"}
+                />
+                <button onClick={askDallasAssistant} disabled={assistantLoading} className="rounded-2xl bg-slate-950 px-4 py-3 text-white disabled:opacity-50">
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1259,10 +1352,7 @@ function CommentBox({ item, category, addComment, removeComment, dark, savedCard
           </div>
         ))}
       </div>
-      <div className="mt-3 flex gap-2">
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add comment" className={dark && !savedCard ? "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none" : "min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none"} />
-        <button onClick={() => { addComment(item.id, category, text); setText(""); }} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Post</button>
-      </div>
+      <div className="mt-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add comment" className={dark && !savedCard ? "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none" : "min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none"} /><button onClick={() => { addComment(item.id, category, text); setText(""); }} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Post</button></div>
     </div>
   );
 }
