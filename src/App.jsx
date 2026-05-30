@@ -324,17 +324,23 @@ function App() {
 
     if (q.includes("confirm") || q.includes("going") || q.includes("who is coming") || q.includes("who's coming")) {
       if (!confirmed.length) return "No one is confirmed yet.";
-      return `${confirmed.length} people are confirmed:\n${confirmed.map((person) => `• ${person.name}`).join("\n")}`;
+      return `${confirmed.length} people are confirmed:
+${confirmed.map((person) => `• ${person.name}`).join("
+")}`;
     }
 
     if (q.includes("not confirmed") || q.includes("unconfirmed")) {
       if (!unconfirmed.length) return "Everyone on the list is confirmed.";
-      return `${unconfirmed.length} people are not confirmed:\n${unconfirmed.map((person) => `• ${person.name}`).join("\n")}`;
+      return `${unconfirmed.length} people are not confirmed:
+${unconfirmed.map((person) => `• ${person.name}`).join("
+")}`;
     }
 
     if (q.includes("owe") || q.includes("owes") || q.includes("money")) {
       if (!owedTransactions.length) return "No one owes anyone right now.";
-      return `Current money owed:\n${owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amount)}`).join("\n")}`;
+      return `Current money owed:
+${owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amount)}`).join("
+")}`;
     }
 
     if (q.includes("budget") || q.includes("spent") || q.includes("expense") || q.includes("total")) {
@@ -342,7 +348,9 @@ function App() {
     }
 
     if (q.includes("final") || q.includes("pick") || q.includes("selected")) {
-      return `Final picks:\n${finalPickLines.map((line) => `• ${line}`).join("\n")}`;
+      return `Final picks:
+${finalPickLines.map((line) => `• ${line}`).join("
+")}`;
     }
 
     if (q.includes("flight")) {
@@ -386,23 +394,73 @@ function App() {
         : "No shopping suggestions yet.";
     }
 
-    if (q.includes("summary") || q.includes("summarize") || q.includes("plan")) {
-      return `Trip summary:\n• ${confirmed.length} people confirmed\n• Total recorded expenses: ${currency(totalExpenses)}\n• Open payments: ${owedTransactions.length}\n• Final picks:\n${finalPickLines.map((line) => `  - ${line}`).join("\n")}`;
+    if (q.includes("summary") || q.includes("summarize")) {
+      return `Trip summary:
+• ${confirmed.length} people confirmed
+• Total recorded expenses: ${currency(totalExpenses)}
+• Open payments: ${owedTransactions.length}
+• Final picks:
+${finalPickLines.map((line) => `  - ${line}`).join("
+")}`;
     }
 
-    return "I can answer things like: who is confirmed, who owes money, total budget, final picks, top activity, top food, top shopping, flight, hotel, or trip summary.";
+    return null;
   };
 
-  const askDallasAssistant = () => {
+  const askDallasAssistant = async () => {
     const message = assistantInput.trim();
-    if (!message) return;
+    if (!message || assistantLoading) return;
 
-    setAssistantMessages((prev) => [
-      ...prev,
-      { role: "user", content: message },
-      { role: "assistant", content: getDallasLiteAnswer(message) },
-    ]);
+    setAssistantMessages((prev) => [...prev, { role: "user", content: message }]);
     setAssistantInput("");
+
+    const liteAnswer = getDallasLiteAnswer(message);
+    if (liteAnswer) {
+      setAssistantMessages((prev) => [...prev, { role: "assistant", content: liteAnswer }]);
+      return;
+    }
+
+    setAssistantLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          tripData: {
+            people: data.people,
+            flights: data.flights,
+            stay: data.stay,
+            cars: data.cars,
+            activities: data.activities,
+            food: data.food,
+            shopping: data.shopping,
+            finalPicks: data.finalPicks,
+            expenses: data.expenses,
+            settlements: data.settlements,
+          },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Gemini request failed.");
+      }
+
+      setAssistantMessages((prev) => [...prev, { role: "assistant", content: result.answer }]);
+    } catch (error) {
+      setAssistantMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Error: ${error.message}`,
+        },
+      ]);
+    } finally {
+      setAssistantLoading(false);
+    }
   };
 
   const toggleNotifications = () => {
