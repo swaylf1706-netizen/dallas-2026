@@ -768,37 +768,7 @@ function App() {
           <div className={dark ? "w-full max-w-md rounded-[2rem] border border-white/10 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl" : "w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-2xl"}>
             <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
             <h1 className={dark ? "text-3xl font-black text-white" : "text-3xl font-black text-slate-950"}>Loading Dallas 2026</h1>
-            <p className="mt-2 text-sm font-bold text-slate-400">Checking your Google sign-in...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className={pageClass}>
-        <div className="flex min-h-screen items-center justify-center px-4">
-          <div className={dark ? "w-full max-w-md rounded-[2rem] border border-white/10 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl" : "w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-2xl"}>
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-950 text-white">
-              <Lock size={28} />
-            </div>
-            <h1 className={dark ? "text-4xl font-black text-white" : "text-4xl font-black text-slate-950"}>DALLAS 2026</h1>
-            <p className="mt-3 text-sm font-bold text-slate-400">
-              Sign in with Google to view and use the group trip planner.
-            </p>
-            <button
-              onClick={handleLogin}
-              className="mt-6 w-full rounded-2xl bg-indigo-600 px-5 py-4 text-sm font-black text-white shadow-xl shadow-indigo-200 hover:bg-slate-950"
-            >
-              Sign in with Google
-            </button>
-            <button
-              onClick={() => setDark((prev) => !prev)}
-              className={dark ? "mt-4 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black text-white" : "mt-4 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700"}
-            >
-              {dark ? "Light Mode" : "Dark Mode"}
-            </button>
+            <p className="mt-2 text-sm font-bold text-slate-400">Checking app access...</p>
           </div>
         </div>
       </div>
