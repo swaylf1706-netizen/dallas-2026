@@ -302,110 +302,12 @@ function App() {
     await signOut(auth);
   };
 
-  const getDallasLiteAnswer = (question) => {
-    const q = question.toLowerCase();
-
-    const confirmed = data.people.filter((person) => person.going);
-    const unconfirmed = data.people.filter((person) => !person.going);
-    const totalExpenses = data.expenses.reduce((sum, expense) => sum + num(expense.amount), 0);
-
-    const getVoteScoreLocal = (item) => Object.values(item.votes || {}).reduce((sum, vote) => sum + vote, 0);
-
-    const getTopItem = (category) => {
-      const items = data[category] || [];
-      if (!items.length) return null;
-      return [...items].sort((a, b) => getVoteScoreLocal(b) - getVoteScoreLocal(a))[0];
-    };
-
-    const finalPickLines = boardCategories.map((category) => {
-      const selected = (data[category] || []).find((item) => item.id === data.finalPicks?.[category]);
-      return `• ${labels[category]}: ${selected?.title || "Not selected yet"}`;
-    });
-
-    if (q.includes("confirm") || q.includes("going") || q.includes("who is coming") || q.includes("who's coming")) {
-      if (!confirmed.length) return "No one is confirmed yet.";
-      return [`${confirmed.length} people are confirmed:`, ...confirmed.map((person) => `• ${person.name}`)].join("\\n");
-    }
-
-    if (q.includes("not confirmed") || q.includes("unconfirmed")) {
-      if (!unconfirmed.length) return "Everyone on the list is confirmed.";
-      return [`${unconfirmed.length} people are not confirmed:`, ...unconfirmed.map((person) => `• ${person.name}`)].join("\\n");
-    }
-
-    if (q.includes("owe") || q.includes("owes") || q.includes("money")) {
-      if (!owedTransactions.length) return "No one owes anyone right now.";
-      return ["Current money owed:", ...owedTransactions.map((tx) => `• ${tx.from} owes ${tx.to} ${currency(tx.amount)}`)].join("\\n");
-    }
-
-    if (q.includes("budget") || q.includes("spent") || q.includes("expense") || q.includes("total")) {
-      return `The group has recorded ${currency(totalExpenses)} in expenses. There are ${owedTransactions.length} open payment(s) and ${(data.settlements || []).length} paid-off payment(s).`;
-    }
-
-    if (q.includes("final") || q.includes("pick") || q.includes("selected")) {
-      return ["Final picks:", ...finalPickLines].join("\\n");
-    }
-
-    if (q.includes("flight")) {
-      const selected = (data.flights || []).find((item) => item.id === data.finalPicks?.flights);
-      const top = getTopItem("flights");
-      if (selected) return `Final flight: ${selected.title || "Untitled flight"}. ${selected.link ? "There is a link attached." : "No link added yet."}`;
-      if (top) return `No final flight selected yet. Top flight suggestion: ${top.title || "Untitled flight"} with score ${getVoteScoreLocal(top)}.`;
-      return "No flight suggestions yet.";
-    }
-
-    if (q.includes("hotel") || q.includes("stay")) {
-      const selected = (data.stay || []).find((item) => item.id === data.finalPicks?.stay);
-      const top = getTopItem("stay");
-      if (selected) return `Final stay: ${selected.title || "Untitled stay"}. ${selected.link ? "There is a link attached." : "No link added yet."}`;
-      if (top) return `No final stay selected yet. Top stay suggestion: ${top.title || "Untitled stay"} with score ${getVoteScoreLocal(top)}.`;
-      return "No stay suggestions yet.";
-    }
-
-    if (q.includes("activity") || q.includes("activities")) {
-      const top = getTopItem("activities");
-      if (!top) return "No activity suggestions yet.";
-      return `Top activity suggestion: ${top.title || "Untitled activity"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "activities"))}.`;
-    }
-
-    if (q.includes("food") || q.includes("restaurant") || q.includes("eat")) {
-      const top = getTopItem("food");
-      if (!top) return "No food suggestions yet.";
-      return `Top food suggestion: ${top.title || "Untitled food option"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "food"))}.`;
-    }
-
-    if (q.includes("shopping") || q.includes("shop")) {
-      const top = getTopItem("shopping");
-      if (!top) return "No shopping suggestions yet.";
-      return `Top shopping suggestion: ${top.title || "Untitled shopping option"} with score ${getVoteScoreLocal(top)}. Estimated per person: ${currency(getPricePPForCategory(top, "shopping"))}.`;
-    }
-
-    if (q.includes("summary") || q.includes("summarize")) {
-      return [
-        "Trip summary:",
-        `• ${confirmed.length} people confirmed`,
-        `• Total recorded expenses: ${currency(totalExpenses)}`,
-        `• Open payments: ${owedTransactions.length}`,
-        "• Final picks:",
-        ...finalPickLines.map((line) => `  ${line}`),
-      ].join("\\n");
-    }
-
-    return null;
-  };
-
   const askDallasAssistant = async () => {
     const message = assistantInput.trim();
     if (!message || assistantLoading) return;
 
     setAssistantMessages((prev) => [...prev, { role: "user", content: message }]);
     setAssistantInput("");
-
-    const liteAnswer = getDallasLiteAnswer(message);
-    if (liteAnswer) {
-      setAssistantMessages((prev) => [...prev, { role: "assistant", content: liteAnswer }]);
-      return;
-    }
-
     setAssistantLoading(true);
 
     try {
