@@ -239,6 +239,7 @@ function App() {
   const [notesDraft, setNotesDraft] = useState("");
   const [isSpreadsheetEditing, setIsSpreadsheetEditing] = useState(false);
   const [spreadsheetDraft, setSpreadsheetDraft] = useState(null);
+  const [expandedSpreadsheetCards, setExpandedSpreadsheetCards] = useState({});
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
 
@@ -837,6 +838,17 @@ function App() {
       return colSum + num(String(row.cells?.[column.id] || "").replace(/[^0-9.-]/g, ""));
     }, 0);
   }, 0);
+  const spreadsheetStatusColumn = spreadsheetColumns.find((column) => column.id === "status" || column.type === "status");
+  const spreadsheetPaidColumn = spreadsheetColumns.find((column) => column.id === "paid" || column.type === "paid");
+  const spreadsheetConfirmedCount = spreadsheetStatusColumn
+    ? spreadsheetRows.filter((row) => String(row.cells?.[spreadsheetStatusColumn.id] || "").toLowerCase() === "confirmed").length
+    : 0;
+  const spreadsheetWaitingCount = spreadsheetStatusColumn
+    ? spreadsheetRows.filter((row) => String(row.cells?.[spreadsheetStatusColumn.id] || "").toLowerCase() === "waiting").length
+    : 0;
+  const spreadsheetPaidCount = spreadsheetPaidColumn
+    ? spreadsheetRows.filter((row) => String(row.cells?.[spreadsheetPaidColumn.id] || "").toLowerCase() !== "no").length
+    : 0;
 
   const requireEditUser = () => {
     if (user) return true;
@@ -1455,80 +1467,109 @@ function App() {
                     <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg">
                       <CheckCircle2 size={15} /> Saved Sheet Cards
                     </div>
-                    <h3 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">Payment Cards</h3>
-                    <p className="mt-1 text-sm font-bold text-slate-500">Elegant saved view showing every detail for each person.</p>
+                    <h3 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">Payment Dashboard</h3>
+                    <p className="mt-1 text-sm font-bold text-slate-500">Compact premium cards. Tap details for the full row without taking over the page.</p>
                   </div>
-                  <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700 shadow-sm">✓ Saved & locked</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700 shadow-sm">Confirmed: {spreadsheetConfirmedCount}</span>
+                    <span className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700 shadow-sm">Waiting: {spreadsheetWaitingCount}</span>
+                    <span className="rounded-2xl bg-indigo-50 px-4 py-3 text-xs font-black text-indigo-700 shadow-sm">Paid Notes: {spreadsheetPaidCount}</span>
+                    <span className="rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black text-white shadow-sm">✓ Saved</span>
+                  </div>
                 </div>
 
-                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                   {spreadsheetRows.map((row, index) => {
                     const personColumn = spreadsheetColumns.find((column) => column.id === "person") || spreadsheetColumns[0];
                     const statusColumn = spreadsheetColumns.find((column) => column.id === "status" || column.type === "status");
                     const paidColumn = spreadsheetColumns.find((column) => column.id === "paid" || column.type === "paid");
+                    const amount6Column = spreadsheetColumns.find((column) => column.id === "amount6") || spreadsheetColumns.find((column) => column.title.toLowerCase().includes("6 people"));
+                    const amount8Column = spreadsheetColumns.find((column) => column.id === "amount8") || spreadsheetColumns.find((column) => column.title.toLowerCase().includes("8 people"));
+                    const refund8Column = spreadsheetColumns.find((column) => column.id === "refund8") || spreadsheetColumns.find((column) => column.title.toLowerCase().includes("refund if 8"));
                     const personName = row.cells?.[personColumn.id] || `Person ${index + 1}`;
                     const status = statusColumn ? row.cells?.[statusColumn.id] || "Waiting" : "Waiting";
                     const paid = paidColumn ? row.cells?.[paidColumn.id] || "No" : "No";
+                    const currentAmount = amount6Column ? row.cells?.[amount6Column.id] || "—" : "—";
+                    const finalAmount = amount8Column ? row.cells?.[amount8Column.id] || "—" : "—";
+                    const refundAmount = refund8Column ? row.cells?.[refund8Column.id] || "—" : "—";
+                    const isExpanded = !!expandedSpreadsheetCards[row.id];
                     const initials = personName
                       .split(" ")
                       .map((word) => word[0])
                       .join("")
                       .slice(0, 2)
                       .toUpperCase();
+                    const detailColumns = spreadsheetColumns.filter((column) => column.id !== personColumn.id);
 
                     return (
-                      <div key={row.id} className="mobile-card-motion group relative overflow-hidden rounded-[2.5rem] border border-indigo-200 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#eef2ff_48%,#ecfdf5_100%)] p-6 shadow-[0_30px_90px_rgba(79,70,229,0.18)] ring-4 ring-indigo-50 hover:shadow-[0_35px_110px_rgba(79,70,229,0.26)]">
-                        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
-                        <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-indigo-300/40 blur-3xl" />
-                        <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-emerald-300/45 blur-3xl" />
+                      <div key={row.id} className="mobile-card-motion relative overflow-hidden rounded-[1.65rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] p-4 shadow-[0_18px_45px_rgba(79,70,229,0.12)] ring-1 ring-white hover:shadow-[0_24px_60px_rgba(79,70,229,0.18)]">
+                        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
+                        <div className="absolute -right-10 -top-10 h-24 w-24 rounded-full bg-indigo-200/50 blur-2xl" />
+                        <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-emerald-200/50 blur-2xl" />
 
-                        <div className="relative flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-slate-950 text-lg font-black text-white shadow-xl shadow-slate-300">
+                        <div className="relative flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white shadow-lg shadow-slate-300">
                               {initials || index + 1}
                             </div>
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Dallas 2026</p>
-                              <h3 className="mt-1 text-3xl font-black tracking-tight text-slate-950">{personName}</h3>
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-500">Dallas 2026</p>
+                              <h3 className="truncate text-xl font-black tracking-tight text-slate-950">{personName}</h3>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${getStatusPillClass(status)}`}>{status}</span>
-                            <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${getPaidPillClass(paid)}`}>{paid}</span>
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${getStatusPillClass(status)}`}>{status}</span>
+                        </div>
+
+                        <div className="relative mt-4 grid grid-cols-2 gap-2">
+                          <div className="rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Current</p>
+                            <p className="mt-1 truncate text-lg font-black text-emerald-600">{currentAmount}</p>
+                          </div>
+                          <div className="rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">8 People</p>
+                            <p className="mt-1 truncate text-lg font-black text-slate-950">{finalAmount}</p>
                           </div>
                         </div>
 
-                        <div className="relative mt-6 grid gap-3">
-                          {spreadsheetColumns
-                            .filter((column) => column.id !== personColumn.id)
-                            .map((column) => {
+                        <div className="relative mt-3 flex items-center justify-between gap-2">
+                          <span className={`truncate rounded-full px-3 py-1.5 text-[10px] font-black shadow-sm ${getPaidPillClass(paid)}`}>{paid}</span>
+                          <span className="truncate rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black text-emerald-700 shadow-sm">Refund: {refundAmount}</span>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="relative mt-3 grid gap-2 border-t border-indigo-100 pt-3">
+                            {detailColumns.map((column) => {
                               const value = row.cells?.[column.id] || "—";
                               const isStatus = column.type === "status" || column.id === "status";
                               const isPaid = column.type === "paid" || column.id === "paid";
                               const isLink = column.type === "link" && value !== "—";
 
                               return (
-                                <div key={column.id} className="rounded-[1.35rem] border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{column.title}</p>
-                                  <div className="mt-2">
-                                    {isLink ? (
-                                      <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-indigo-100">
-                                        Open Link <ExternalLink size={13} />
-                                      </a>
-                                    ) : isStatus ? (
-                                      <span className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${getStatusPillClass(value === "—" ? "Waiting" : value)}`}>{value}</span>
-                                    ) : isPaid ? (
-                                      <span className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${getPaidPillClass(value === "—" ? "No" : value)}`}>{value}</span>
-                                    ) : column.type === "money" || column.type === "moneyText" || column.title.toLowerCase().includes("amount") || column.title.toLowerCase().includes("refund") ? (
-                                      <p className="text-2xl font-black text-emerald-600">{value}</p>
-                                    ) : (
-                                      <p className="whitespace-pre-wrap break-words text-sm font-black leading-6 text-slate-800">{value}</p>
-                                    )}
-                                  </div>
+                                <div key={column.id} className="grid grid-cols-[92px_1fr] items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 shadow-sm backdrop-blur">
+                                  <p className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">{column.title}</p>
+                                  {isLink ? (
+                                    <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-[10px] font-black text-white">
+                                      Open <ExternalLink size={11} />
+                                    </a>
+                                  ) : isStatus ? (
+                                    <span className={`w-fit rounded-xl px-2.5 py-1 text-[10px] font-black ${getStatusPillClass(value === "—" ? "Waiting" : value)}`}>{value}</span>
+                                  ) : isPaid ? (
+                                    <span className={`w-fit rounded-xl px-2.5 py-1 text-[10px] font-black ${getPaidPillClass(value === "—" ? "No" : value)}`}>{value}</span>
+                                  ) : (
+                                    <p className="truncate text-xs font-black text-slate-800" title={value}>{value}</p>
+                                  )}
                                 </div>
                               );
                             })}
-                        </div>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => setExpandedSpreadsheetCards((prev) => ({ ...prev, [row.id]: !prev[row.id] }))}
+                          className="relative mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-slate-200 hover:bg-indigo-700"
+                        >
+                          {isExpanded ? "Hide Details" : "View Details"}
+                        </button>
                       </div>
                     );
                   })}
