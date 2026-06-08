@@ -920,14 +920,14 @@ function App() {
       linkInput: "min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold outline-none focus:ring-4 focus:ring-indigo-100",
     },
     tiny: {
-      head: "min-w-[46px] border-l border-white/10 px-0.5 py-0.5 text-left align-top text-[8px] leading-tight",
-      rowNumber: "border-t border-slate-100 px-0.5 py-0.5 text-[8px] font-black text-slate-400",
+      head: "min-w-[34px] border-l border-white/10 px-0.5 py-0.5 text-left align-top text-[7px] leading-none",
+      rowNumber: "border-t border-slate-100 px-0.5 py-0.5 text-[7px] font-black text-slate-400",
       cell: "border-l border-t border-slate-100 px-0.5 py-0.5 align-top",
-      input: "w-full min-w-[44px] rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[8px] font-semibold leading-tight text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
-      display: "min-w-[44px] rounded bg-slate-50 px-1 py-0.5 text-[8px] font-bold leading-tight text-slate-700",
-      select: "w-full min-w-[44px] rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[8px] font-black leading-tight text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
-      linkWrap: "flex min-w-[56px] items-center gap-0.5",
-      linkInput: "min-w-0 flex-1 rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[8px] font-semibold leading-tight outline-none focus:ring-1 focus:ring-indigo-100",
+      input: "w-full min-w-[32px] rounded border border-slate-200 bg-slate-50 px-0.5 py-0.5 text-[7px] font-semibold leading-none text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
+      display: "min-w-[32px] rounded bg-slate-50 px-0.5 py-0.5 text-[7px] font-bold leading-none text-slate-700",
+      select: "w-full min-w-[32px] rounded border border-slate-200 bg-slate-50 px-0.5 py-0.5 text-[7px] font-black leading-none text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
+      linkWrap: "flex min-w-[42px] items-center gap-0.5",
+      linkInput: "min-w-0 flex-1 rounded border border-slate-200 bg-slate-50 px-0.5 py-0.5 text-[7px] font-semibold leading-none outline-none focus:ring-1 focus:ring-indigo-100",
     },
   }[spreadsheetViewMode] || {};
 
@@ -1166,19 +1166,59 @@ function App() {
       light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#e0f2fe_0,#f8fafc_35%,#eef2ff_100%)] text-slate-950",
       dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#0f172a_0,#020617_55%,#000_100%)] text-white",
     },
+    liquidChrome: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_20%_10%,#f8fafc_0,#e0f2fe_28%,#f5f3ff_58%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_15%_15%,#e2e8f0_0,#64748b_12%,#111827_42%,#020617_100%)] text-white",
+    },
+    plasma: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_20%_15%,#f0abfc_0,#bfdbfe_30%,#fde68a_62%,#fff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_20%_15%,#f97316_0,#ec4899_26%,#7c3aed_55%,#020617_100%)] text-white",
+    },
+    arctic: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_15%_15%,#ccfbf1_0,#dbeafe_35%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_15%_15%,#67e8f9_0,#1e3a8a_32%,#020617_100%)] text-white",
+    },
+    sakura: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_20%_10%,#fbcfe8_0,#fce7f3_36%,#fff7ed_75%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_20%_10%,#fb7185_0,#9f1239_35%,#020617_100%)] text-white",
+    },
+    matrix: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#dcfce7_0,#f0fdf4_35%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#22c55e_0,#052e16_34%,#000_100%)] text-white",
+    },
+    lava: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#fed7aa_0,#fee2e2_40%,#fff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#ef4444_0,#7f1d1d_36%,#020617_100%)] text-white",
+    },
+    ocean: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#bae6fd_0,#ccfbf1_36%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#0ea5e9_0,#164e63_34%,#020617_100%)] text-white",
+    },
+    ultraviolet: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#ede9fe_0,#f5d0fe_38%,#fff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#a855f7_0,#581c87_34%,#020617_100%)] text-white",
+    },
   };
 
   const themeChoices = [
-    ["royal", "Royal", "bg-gradient-to-br from-indigo-500 to-violet-700"],
-    ["galaxy", "Galaxy", "bg-gradient-to-br from-fuchsia-500 via-violet-600 to-sky-500"],
-    ["cyber", "Cyber", "bg-gradient-to-br from-cyan-400 to-blue-700"],
-    ["aurora", "Aurora", "bg-gradient-to-br from-emerald-400 via-sky-500 to-purple-600"],
-    ["obsidian", "Obsidian", "bg-gradient-to-br from-slate-700 to-black"],
-    ["emerald", "Emerald", "bg-gradient-to-br from-emerald-400 to-green-800"],
-    ["sunset", "Sunset", "bg-gradient-to-br from-orange-400 to-rose-600"],
-    ["rose", "Rose", "bg-gradient-to-br from-pink-400 to-rose-700"],
-    ["gold", "Gold", "bg-gradient-to-br from-amber-300 to-yellow-700"],
-    ["midnight", "Midnight", "bg-gradient-to-br from-blue-950 to-slate-950"],
+    ["royal", "Royal Crown", "bg-gradient-to-br from-indigo-500 to-violet-700"],
+    ["galaxy", "Cosmic Galaxy", "bg-gradient-to-br from-fuchsia-500 via-violet-600 to-sky-500"],
+    ["cyber", "Cyber Neon", "bg-gradient-to-br from-cyan-400 to-blue-700"],
+    ["aurora", "Aurora Lights", "bg-gradient-to-br from-emerald-400 via-sky-500 to-purple-600"],
+    ["obsidian", "Obsidian Glass", "bg-gradient-to-br from-slate-700 to-black"],
+    ["emerald", "Emerald City", "bg-gradient-to-br from-emerald-400 to-green-800"],
+    ["sunset", "Sunset Glow", "bg-gradient-to-br from-orange-400 to-rose-600"],
+    ["rose", "Rose Gold", "bg-gradient-to-br from-pink-400 to-rose-700"],
+    ["gold", "Gold Luxe", "bg-gradient-to-br from-amber-300 to-yellow-700"],
+    ["midnight", "Midnight Noir", "bg-gradient-to-br from-blue-950 to-slate-950"],
+    ["liquidChrome", "Liquid Chrome", "bg-gradient-to-br from-slate-200 via-cyan-200 to-violet-300"],
+    ["plasma", "Plasma Dream", "bg-gradient-to-br from-orange-400 via-pink-500 to-violet-700"],
+    ["arctic", "Arctic Sky", "bg-gradient-to-br from-cyan-200 via-sky-400 to-blue-800"],
+    ["sakura", "Sakura Dream", "bg-gradient-to-br from-pink-200 via-rose-300 to-orange-200"],
+    ["matrix", "Matrix Pulse", "bg-gradient-to-br from-green-400 to-black"],
+    ["lava", "Lava Core", "bg-gradient-to-br from-red-500 via-orange-500 to-black"],
+    ["ocean", "Ocean Deep", "bg-gradient-to-br from-sky-400 via-teal-500 to-blue-950"],
+    ["ultraviolet", "Ultra Violet", "bg-gradient-to-br from-purple-400 via-fuchsia-500 to-indigo-950"],
   ];
 
   const pageClass = themeStyles[themePreset]?.[dark ? "dark" : "light"] || themeStyles.royal[dark ? "dark" : "light"];
@@ -1315,7 +1355,7 @@ function App() {
                     <Sparkles size={14} className="text-amber-400" />
                   </button>
                   {themePickerOpen && (
-                    <div className={dark ? "absolute right-0 top-14 z-[80] w-[340px] rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 text-white shadow-2xl backdrop-blur-2xl" : "absolute right-0 top-14 z-[80] w-[340px] rounded-[2rem] border border-slate-200 bg-white/95 p-4 text-slate-950 shadow-2xl backdrop-blur-2xl"}>
+                    <div className={dark ? "fixed right-4 top-24 z-[90] max-h-[72vh] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 text-white shadow-2xl backdrop-blur-2xl" : "fixed right-4 top-24 z-[90] max-h-[72vh] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-[2rem] border border-slate-200 bg-white/95 p-4 text-slate-950 shadow-2xl backdrop-blur-2xl"}>
                       <div className="mb-3 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-black">Choose Theme</p>
@@ -1323,19 +1363,18 @@ function App() {
                         </div>
                         <button onClick={() => setThemePickerOpen(false)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">Close</button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {themeChoices.map(([themeId, themeLabel, swatch]) => (
                           <button
                             key={themeId}
                             onClick={() => { setThemePreset(themeId); setThemePickerOpen(false); }}
                             className={themePreset === themeId ? "rounded-2xl border-2 border-indigo-500 bg-indigo-50 p-2 text-left shadow-lg" : dark ? "rounded-2xl border border-white/10 bg-white/5 p-2 text-left hover:bg-white/10" : "rounded-2xl border border-slate-200 bg-slate-50 p-2 text-left hover:bg-white"}
                           >
-                            <div className={`mb-2 h-14 rounded-xl ${swatch}`} />
-                            <p className="text-xs font-black">{themeLabel}</p>
+                            <div className={`mb-2 h-16 rounded-xl shadow-inner ring-1 ring-white/30 ${swatch}`} />
+                            <p className="text-xs font-black leading-tight">{themeLabel}</p>
                           </button>
                         ))}
                       </div>
-                      <p className="mt-3 text-[11px] font-bold text-slate-400">Shortcut: press Ctrl/⌘ + K to search commands.</p>
                     </div>
                   )}
                 </div>
@@ -1533,9 +1572,6 @@ function App() {
                 <button onClick={exportSpreadsheetCsv} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm">
                   Export CSV
                 </button>
-                <button disabled={!isSpreadsheetEditing} onClick={() => applySpreadsheetTemplate("payment")} className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-emerald-200 disabled:cursor-not-allowed disabled:opacity-40">
-                  Reset to Dallas Payment Split
-                </button>
                 {!user && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700">Sign in to edit the spreadsheet.</p>}
                 <div className="relative">
                   <button
@@ -1543,10 +1579,10 @@ function App() {
                     className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm"
                     title="Spreadsheet zoom"
                   >
-                    <SlidersHorizontal size={17} /> {spreadsheetViewMode === "tiny" ? "Tiny" : spreadsheetViewMode === "compact" ? "Compact" : "Normal"}
+                    <SlidersHorizontal size={17} /> {spreadsheetViewMode === "tiny" ? "Tiny View" : spreadsheetViewMode === "compact" ? "Compact View" : "Normal View"}
                   </button>
                   {zoomPickerOpen && (
-                    <div className="absolute right-0 top-14 z-[70] w-64 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-2xl">
+                    <div className="fixed right-4 top-24 z-[90] max-h-[60vh] w-[min(280px,calc(100vw-2rem))] overflow-y-auto rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-2xl">
                       <p className="px-2 pb-2 text-xs font-black uppercase tracking-wider text-slate-400">Spreadsheet Zoom</p>
                       {[ ["normal", "Normal", "Comfortable editing"], ["compact", "Compact", "More visible at once"], ["tiny", "Tiny", "Maximum zoomed-out view"] ].map(([mode, label, helper]) => (
                         <button
