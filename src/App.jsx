@@ -1386,35 +1386,42 @@ function App() {
               })}
             </div>
 
-            <div className="mt-6 rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_55%,#ecfdf5_100%)] p-6 shadow-[0_20px_70px_rgba(79,70,229,0.12)]">
-              <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+            <div className="relative mt-8 overflow-hidden rounded-[2.5rem] border border-indigo-200 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_42%,#ecfdf5_100%)] p-7 shadow-[0_30px_100px_rgba(79,70,229,0.22)] ring-4 ring-indigo-100">
+              <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-indigo-300/40 blur-3xl" />
+              <div className="absolute -bottom-24 -left-24 h-60 w-60 rounded-full bg-emerald-300/45 blur-3xl" />
+              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
+
+              <div className="relative mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
                 <div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
-                    Dallas Payment Notes
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg">
+                    <CheckCircle2 size={15} /> Saved Notes
                   </div>
-                  <p className="mt-2 text-xs font-bold text-slate-400">
-                    Saved notes stay locked until someone clicks Edit Notes.
+                  <h3 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+                    Dallas Payment Plan
+                  </h3>
+                  <p className="mt-2 max-w-xl text-sm font-bold text-slate-500">
+                    Locked premium notes for the group. Click Edit Notes to make changes, then Save Notes to lock it again.
                   </p>
                 </div>
 
                 {!isNotesEditing ? (
                   <button
                     onClick={startEditingSpreadsheetNotes}
-                    className="rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-black text-white shadow-lg shadow-indigo-200 hover:bg-slate-950"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-black text-slate-700 shadow-lg shadow-indigo-100 hover:bg-slate-950 hover:text-white"
                   >
-                    Edit Notes
+                    <Pencil size={15} /> Edit Notes
                   </button>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={saveSpreadsheetNotes}
-                      className="rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700"
+                      className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-black text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700"
                     >
-                      Save Notes
+                      <Save size={15} /> Save Notes
                     </button>
                     <button
                       onClick={cancelSpreadsheetNotes}
-                      className="rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-600 shadow-sm hover:bg-slate-100"
+                      className="rounded-2xl bg-white px-5 py-3 text-xs font-black text-slate-600 shadow-sm hover:bg-slate-100"
                     >
                       Cancel
                     </button>
@@ -1423,16 +1430,31 @@ function App() {
               </div>
 
               {!isNotesEditing ? (
-                <div className="min-h-[220px] whitespace-pre-wrap rounded-[1.5rem] border border-indigo-100 bg-white/85 px-5 py-4 text-sm font-bold leading-7 text-slate-700 shadow-inner">
-                  {spreadsheet.notes || "No notes saved yet."}
+                <div className="relative grid gap-4 md:grid-cols-[1fr_320px]">
+                  <div className="whitespace-pre-wrap rounded-[2rem] border border-white/80 bg-white/85 px-6 py-5 text-sm font-bold leading-7 text-slate-700 shadow-xl shadow-indigo-100/50 backdrop-blur">
+                    {spreadsheet.notes || "No notes saved yet."}
+                  </div>
+                  <div className="space-y-4">
+                    <div className="rounded-[2rem] bg-slate-950 p-5 text-white shadow-xl">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Status</p>
+                      <p className="mt-2 text-2xl font-black">Saved & Locked</p>
+                      <p className="mt-2 text-xs font-bold text-slate-300">Notes are view-only until someone edits them.</p>
+                    </div>
+                    <div className="rounded-[2rem] bg-emerald-50 p-5 shadow-sm">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Best Method</p>
+                      <p className="mt-2 text-sm font-black leading-6 text-emerald-800">Do not send refunds until the final headcount is locked.</p>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <textarea
-                  value={notesDraft}
-                  onChange={(e) => setNotesDraft(e.target.value)}
-                  placeholder="Add trip payment notes here..."
-                  className="min-h-[260px] w-full resize-y rounded-[1.5rem] border border-indigo-100 bg-white/90 px-5 py-4 text-sm font-bold leading-7 text-slate-700 outline-none shadow-inner focus:ring-4 focus:ring-indigo-100"
-                />
+                <div className="relative rounded-[2rem] border border-indigo-100 bg-white/90 p-4 shadow-xl shadow-indigo-100/50 backdrop-blur">
+                  <textarea
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    placeholder="Add trip payment notes here..."
+                    className="min-h-[320px] w-full resize-y rounded-[1.5rem] border border-indigo-100 bg-white px-5 py-4 text-sm font-bold leading-7 text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100"
+                  />
+                </div>
               )}
             </div>
           </section>
