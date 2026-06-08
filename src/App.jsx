@@ -47,38 +47,37 @@ const uid = () => crypto.randomUUID();
 
 const defaultSpreadsheet = {
   columns: [
-    { id: "item", title: "Item", type: "text" },
-    { id: "price", title: "Price", type: "money" },
-    { id: "link", title: "Link", type: "link" },
-    { id: "status", title: "Status", type: "status" },
+    { id: "person", title: "Person", type: "text" },
+    { id: "status", title: "Status", type: "text" },
+    { id: "owed6", title: "Amount Owed at 6 People", type: "text" },
+    { id: "owed7", title: "Amount Owed at 7 People", type: "text" },
+    { id: "refund7", title: "Refund if 7 People", type: "text" },
+    { id: "owed8", title: "Amount Owed at 8 People", type: "text" },
+    { id: "refund8", title: "Refund if 8 People", type: "text" },
+    { id: "paid", title: "Paid?", type: "text" },
     { id: "notes", title: "Notes", type: "text" },
   ],
   rows: [
-    {
-      id: uid(),
-      cells: {
-        item: "Airbnb",
-        price: "2315",
-        link: "",
-        status: "Booked",
-        notes: "Main stay option",
-      },
-    },
-    {
-      id: uid(),
-      cells: {
-        item: "Car Rental",
-        price: "1147",
-        link: "",
-        status: "Planning",
-        notes: "Nathan paid originally",
-      },
-    },
+    { id: uid(), cells: { person: "Miseal", status: "Confirmed", owed6: "$577.00", owed7: "$494.57", refund7: "$82.43", owed8: "$432.75", refund8: "$144.25", paid: "No", notes: "" } },
+    { id: uid(), cells: { person: "Uael", status: "Confirmed", owed6: "$577.00", owed7: "$494.57", refund7: "$82.43", owed8: "$432.75", refund8: "$144.25", paid: "No", notes: "" } },
+    { id: uid(), cells: { person: "Natnael", status: "Confirmed", owed6: "$577.00", owed7: "$494.57", refund7: "$82.43", owed8: "$432.75", refund8: "$144.25", paid: "No", notes: "" } },
+    { id: uid(), cells: { person: "Waseem", status: "Confirmed", owed6: "$577.00", owed7: "$494.57", refund7: "$82.43", owed8: "$432.75", refund8: "$144.25", paid: "No", notes: "" } },
+    { id: uid(), cells: { person: "Nathan", status: "Confirmed", owed6: "$577.00", owed7: "$494.57", refund7: "$82.43", owed8: "$432.75", refund8: "$144.25", paid: "Paid car rental", notes: "Paid car rental" } },
+    { id: uid(), cells: { person: "Samrawi", status: "Confirmed", owed6: "$577.00", owed7: "$494.57", refund7: "$82.43", owed8: "$432.75", refund8: "$144.25", paid: "No", notes: "" } },
+    { id: uid(), cells: { person: "Emi", status: "Waiting", owed6: "TBD", owed7: "$494.57", refund7: "—", owed8: "$432.75", refund8: "—", paid: "No", notes: "Waiting to confirm" } },
+    { id: uid(), cells: { person: "Kris", status: "Waiting", owed6: "TBD", owed7: "$494.57", refund7: "—", owed8: "$432.75", refund8: "—", paid: "No", notes: "Waiting to confirm" } },
   ],
+  notes: `Trip Summary:\nAirbnb: $2,315.00\nCar rental: $1,147.00\nTotal shared cost: $3,462.00\n\nPayment Splits:\nIf 6 people total: $577.00 each\nIf 7 people total: $494.57 each\nIf 8 people total: $432.75 each\n\nRefund Plan:\nIf 1 more person joins, original 6 each get back $82.43.\nIf 2 more people join, original 6 each get back $144.25.\nIf Emi joins first and pays $494.57, then Kris joins later, Emi gets back $61.82.\n\nBest Method:\nTrack everything in this spreadsheet. Do not send refunds until Emi and Kris fully confirm. Whoever is holding the trip money should distribute refunds after the final headcount is locked. This avoids confusing back-and-forth payments.`,
   updatedAt: Date.now(),
 };
 
 const spreadsheetTemplates = {
+  payment: {
+    name: "Dallas Payment Split",
+    columns: defaultSpreadsheet.columns,
+    rows: defaultSpreadsheet.rows,
+    notes: defaultSpreadsheet.notes,
+  },
   trip: {
     name: "Trip Planning",
     columns: [
@@ -111,7 +110,7 @@ const spreadsheetTemplates = {
   },
 };
 
-const statusOptions = ["Idea", "Planning", "Booked", "Done", "Rejected"];
+const statusOptions = ["Idea", "Planning", "Booked", "Done", "Rejected", "Confirmed", "Waiting", "Paid", "No", "Yes"];
 
 const starter = {
   people: [],
@@ -265,6 +264,7 @@ function App() {
       ...(cloudData.spreadsheet || {}),
       columns: cloudData.spreadsheet?.columns?.length ? cloudData.spreadsheet.columns : defaultSpreadsheet.columns,
       rows: cloudData.spreadsheet?.rows || defaultSpreadsheet.rows,
+      notes: cloudData.spreadsheet?.notes ?? defaultSpreadsheet.notes,
     },
   });
 
@@ -1213,6 +1213,9 @@ function App() {
                     <option key={key} value={key}>{template.name}</option>
                   ))}
                 </select>
+                <button onClick={() => applySpreadsheetTemplate("payment")} className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-emerald-200">
+                  Reset to Dallas Payment Split
+                </button>
                 {!user && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700">Sign in to edit the spreadsheet.</p>}
                 <p className="ml-auto rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700">✓ Live saved</p>
               </div>
@@ -1314,7 +1317,7 @@ function App() {
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {spreadsheetRows.slice(0, 6).map((row, index) => {
+              {spreadsheetRows.map((row, index) => {
                 const titleColumn = spreadsheetColumns[0];
                 const title = row.cells?.[titleColumn.id] || `Row ${index + 1}`;
                 const statusColumn = spreadsheetColumns.find((column) => column.type === "status");
@@ -1356,6 +1359,17 @@ function App() {
                 );
               })}
             </div>
+
+            {spreadsheet.notes && (
+              <div className="mt-6 rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_55%,#ecfdf5_100%)] p-6 shadow-[0_20px_70px_rgba(79,70,229,0.12)]">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
+                  Dallas Payment Notes
+                </div>
+                <div className="whitespace-pre-line text-sm font-bold leading-7 text-slate-700">
+                  {spreadsheet.notes}
+                </div>
+              </div>
+            )}
           </section>
         )}
 
