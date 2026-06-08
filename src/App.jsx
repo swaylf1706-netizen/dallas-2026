@@ -1245,21 +1245,32 @@ function App() {
         .mobile-card-motion { transition: transform 240ms ease, box-shadow 240ms ease, background-color 240ms ease; }
         .mobile-card-motion:active { transform: scale(0.99); }
         @media (hover: hover) { .mobile-card-motion:hover { transform: translateY(-4px); } }
-        @keyframes pageFadeSlide { from { opacity: 0; transform: translateY(10px) scale(0.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        .page-transition { animation: pageFadeSlide 260ms ease both; }
-        @keyframes sakuraFall { 0% { transform: translate3d(0,-12vh,0) rotate(0deg); opacity: 0; } 10% { opacity: .85; } 100% { transform: translate3d(var(--drift),112vh,0) rotate(720deg); opacity: 0; } }
-        @keyframes auroraFlow { 0%,100% { transform: translateX(-8%) skewX(-10deg); opacity: .45; } 50% { transform: translateX(10%) skewX(12deg); opacity: .75; } }
-        @keyframes luxuryShimmer { 0% { transform: translateX(-120%) rotate(12deg); } 100% { transform: translateX(120%) rotate(12deg); } }
-        @keyframes cyberGrid { 0% { background-position: 0 0, 0 0; } 100% { background-position: 90px 90px, 90px 90px; } }
-        @keyframes floatGlow { 0%,100% { transform: translateY(0) scale(1); opacity: .42; } 50% { transform: translateY(-18px) scale(1.06); opacity: .72; } }
-        @keyframes snowDrift { 0% { transform: translateY(-10vh); opacity: 0; } 15% { opacity: .7; } 100% { transform: translateY(110vh); opacity: 0; } }
-        @keyframes cyberStreak { 0% { transform: translateX(-30vw); opacity: 0; } 12% { opacity: .9; } 100% { transform: translateX(120vw); opacity: 0; } }
-        @keyframes sunsetPulse { 0%,100% { transform: scale(1); opacity: .38; } 50% { transform: scale(1.12); opacity: .7; } }
-        @keyframes midnightStars { 0% { background-position: 0 0; } 100% { background-position: 64px 64px; } }
-        @keyframes cloudSlide { 0% { transform: translateX(-12%); } 100% { transform: translateX(12%); } }
+        @keyframes pageFadeSlide { from { opacity: 0; transform: translateY(12px) scale(0.992); filter: blur(4px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+        .page-transition { animation: pageFadeSlide 320ms cubic-bezier(.2,.9,.2,1) both; }
+        @keyframes worldReveal { from { opacity: 0; transform: scale(1.035); filter: blur(18px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+        @keyframes parallaxFloat { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(0,-16px,0) scale(1.025); } }
+        @keyframes sakuraFall { 0% { transform: translate3d(0,-14vh,0) rotate(0deg) scale(.72); opacity: 0; } 8% { opacity: .9; } 50% { transform: translate3d(calc(var(--drift) / 2),48vh,0) rotate(320deg) scale(1); } 100% { transform: translate3d(var(--drift),112vh,0) rotate(760deg) scale(.85); opacity: 0; } }
+        @keyframes sakuraTreeBreath { 0%,100% { transform: rotate(-2deg) scale(1); } 50% { transform: rotate(1.5deg) scale(1.025); } }
+        @keyframes auroraFlow { 0%,100% { transform: translateX(-10%) skewX(-11deg) scaleY(1); opacity: .44; } 50% { transform: translateX(10%) skewX(12deg) scaleY(1.18); opacity: .78; } }
+        @keyframes auroraPulse { 0%,100% { filter: blur(36px) saturate(1.1); } 50% { filter: blur(44px) saturate(1.45); } }
+        @keyframes cyberGrid { 0% { background-position: 0 0, 0 0; } 100% { background-position: 96px 96px, 96px 96px; } }
+        @keyframes cyberStreak { 0% { transform: translateX(-38vw); opacity: 0; } 12% { opacity: .95; } 100% { transform: translateX(120vw); opacity: 0; } }
+        @keyframes neonRain { 0% { transform: translateY(-14vh); opacity: 0; } 15% { opacity: .72; } 100% { transform: translateY(114vh); opacity: 0; } }
+        @keyframes billboardPulse { 0%,100% { opacity: .45; box-shadow: 0 0 24px rgba(34,211,238,.35); } 50% { opacity: .95; box-shadow: 0 0 48px rgba(217,70,239,.52); } }
+        @keyframes hoverCar { 0% { transform: translateX(-20vw) translateY(0); opacity: 0; } 12% { opacity: .95; } 50% { transform: translateX(45vw) translateY(-18px); } 100% { transform: translateX(118vw) translateY(8px); opacity: 0; } }
+        @keyframes snowDrift { 0% { transform: translateY(-12vh) translateX(0); opacity: 0; } 15% { opacity: .85; } 100% { transform: translateY(112vh) translateX(var(--snow-drift)); opacity: 0; } }
+        @keyframes frostMist { 0%,100% { transform: translateX(-8%) scale(1); opacity: .34; } 50% { transform: translateX(8%) scale(1.05); opacity: .62; } }
+        @keyframes sunsetPulse { 0%,100% { transform: scale(1); opacity: .42; } 50% { transform: scale(1.12); opacity: .82; } }
+        @keyframes cloudSlide { 0% { transform: translateX(-18%); } 100% { transform: translateX(18%); } }
+        @keyframes lightParticle { 0%,100% { transform: translateY(0) scale(1); opacity: .34; } 50% { transform: translateY(-18px) scale(1.08); opacity: .78; } }
+        @keyframes midnightStars { 0% { background-position: 0 0; } 100% { background-position: 72px 72px; } }
+        @keyframes nebulaMove { 0%,100% { transform: translate3d(-2%,0,0) scale(1); opacity: .38; } 50% { transform: translate3d(3%,-2%,0) scale(1.08); opacity: .62; } }
+        @keyframes shimmerSweep { 0% { transform: translateX(-130%) rotate(14deg); } 100% { transform: translateX(130%) rotate(14deg); } }
       `}</style>
 
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-all duration-700">
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-all duration-700" key={themePreset}>
+        <div className="absolute inset-0" style={{ animation: "worldReveal 700ms cubic-bezier(.2,.9,.2,1) both" }} />
+
         {themePreset === "regular" && (
           <>
             <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-indigo-300/20 blur-3xl" />
@@ -1267,52 +1278,75 @@ function App() {
             <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)", backgroundSize: "42px 42px" }} />
           </>
         )}
+
         {themePreset === "sakura" && (
           <>
-            <div className="absolute -left-20 top-20 h-[38rem] w-[38rem] rounded-full bg-pink-300/20 blur-3xl" />
-            <div className="absolute left-[-4rem] top-[8rem] h-[26rem] w-[22rem] rounded-full border-l-[34px] border-rose-950/25 rotate-[-18deg]" />
-            <div className="absolute left-[3rem] top-[5rem] h-44 w-72 rounded-full bg-pink-300/25 blur-2xl" />
-            <div className="absolute left-[7rem] top-[9rem] h-40 w-80 rounded-full bg-rose-200/25 blur-2xl" />
-            {[...Array(22)].map((_, i) => (
-              <span key={i} className="absolute -top-8 text-lg opacity-80" style={{ left: `${(i * 7) % 100}%`, animation: `sakuraFall ${9 + (i % 6)}s linear ${i * 0.35}s infinite`, "--drift": `${i % 2 === 0 ? 80 : -80}px` }}>🌸</span>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(255,228,230,.72),transparent_28%),linear-gradient(135deg,rgba(255,241,242,.35),rgba(253,242,248,.08),transparent)]" />
+            <div className="absolute bottom-0 left-0 h-52 w-full bg-gradient-to-t from-pink-100/50 via-white/20 to-transparent" />
+            <div className="absolute left-[-7rem] bottom-[5rem] h-[34rem] w-[26rem] origin-bottom rounded-full border-l-[42px] border-rose-950/35 rotate-[-16deg]" style={{ animation: "sakuraTreeBreath 10s ease-in-out infinite" }} />
+            <div className="absolute left-[1.5rem] top-[5rem] h-52 w-80 rounded-full bg-pink-300/35 blur-2xl" style={{ animation: "parallaxFloat 8s ease-in-out infinite" }} />
+            <div className="absolute left-[7rem] top-[8rem] h-52 w-96 rounded-full bg-rose-200/40 blur-2xl" style={{ animation: "parallaxFloat 11s ease-in-out infinite reverse" }} />
+            <div className="absolute left-[11rem] top-[2.5rem] h-36 w-72 rounded-full bg-white/35 blur-2xl" />
+            {[...Array(32)].map((_, i) => (
+              <span key={i} className="absolute -top-10 text-lg drop-shadow-sm" style={{ left: `${(i * 13) % 100}%`, animation: `sakuraFall ${10 + (i % 8)}s linear ${i * 0.27}s infinite`, "--drift": `${i % 3 === 0 ? 130 : i % 3 === 1 ? -95 : 55}px` }}>🌸</span>
             ))}
           </>
         )}
+
         {themePreset === "cyber" && (
           <>
-            <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "linear-gradient(rgba(34,211,238,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(217,70,239,.28) 1px, transparent 1px)", backgroundSize: "48px 48px", animation: "cyberGrid 14s linear infinite" }} />
-            <div className="absolute bottom-0 left-0 right-0 h-56 bg-gradient-to-t from-black/60 to-transparent" />
-            {[...Array(12)].map((_, i) => <div key={`tower-${i}`} className="absolute bottom-0 rounded-t-lg border border-cyan-300/20 bg-slate-950/60 shadow-[0_0_28px_rgba(34,211,238,.25)]" style={{ left: `${i * 8.5}%`, width: `${4 + (i % 3) * 2}%`, height: `${90 + (i % 5) * 26}px` }}><div className="mt-3 h-1 w-full bg-cyan-300/40" /><div className="mt-4 h-1 w-2/3 bg-fuchsia-300/40" /></div>)}
-            {[...Array(6)].map((_, i) => <div key={i} className="absolute h-[2px] w-48 bg-gradient-to-r from-transparent via-cyan-300 to-transparent blur-[1px]" style={{ top: `${15 + i * 13}%`, animation: `cyberStreak ${5 + i}s linear ${i * .7}s infinite` }} />)}
+            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "linear-gradient(rgba(34,211,238,.38) 1px, transparent 1px), linear-gradient(90deg, rgba(217,70,239,.28) 1px, transparent 1px)", backgroundSize: "48px 48px", animation: "cyberGrid 14s linear infinite" }} />
+            <div className="absolute inset-x-0 bottom-0 h-[42vh] bg-gradient-to-t from-black/70 via-fuchsia-950/25 to-transparent" />
+            <div className="absolute bottom-[8vh] left-[4%] h-[24vh] w-[10vw] min-w-16 bg-cyan-400/15 shadow-[0_0_45px_rgba(34,211,238,.35)]" style={{ clipPath: "polygon(0 100%,0 20%,22% 20%,22% 0,78% 0,78% 32%,100% 32%,100% 100%)" }} />
+            <div className="absolute bottom-[8vh] left-[18%] h-[34vh] w-[12vw] min-w-20 bg-fuchsia-500/15 shadow-[0_0_55px_rgba(217,70,239,.36)]" style={{ clipPath: "polygon(0 100%,0 28%,18% 28%,18% 8%,60% 8%,60% 0,100% 0,100% 100%)" }} />
+            <div className="absolute bottom-[8vh] left-[37%] h-[28vh] w-[14vw] min-w-24 bg-blue-500/15 shadow-[0_0_55px_rgba(59,130,246,.35)]" style={{ clipPath: "polygon(0 100%,0 18%,30% 18%,30% 0,82% 0,82% 24%,100% 24%,100% 100%)" }} />
+            <div className="absolute bottom-[8vh] right-[11%] h-[38vh] w-[13vw] min-w-20 bg-cyan-300/15 shadow-[0_0_65px_rgba(34,211,238,.34)]" style={{ clipPath: "polygon(0 100%,0 8%,46% 8%,46% 0,100% 0,100% 100%)" }} />
+            {[...Array(9)].map((_, i) => <div key={`sign-${i}`} className="absolute h-2 w-12 rounded-full bg-cyan-300/60" style={{ left: `${10 + (i * 9) % 78}%`, bottom: `${18 + (i * 5) % 26}%`, animation: `billboardPulse ${2.2 + (i % 4)}s ease-in-out ${i*.2}s infinite` }} />)}
+            {[...Array(3)].map((_, i) => <div key={`car-${i}`} className="absolute h-1.5 w-12 rounded-full bg-gradient-to-r from-transparent via-cyan-200 to-fuchsia-300 blur-[1px]" style={{ top: `${22 + i * 13}%`, animation: `hoverCar ${9 + i * 3}s linear ${i * 2}s infinite` }} />)}
+            {[...Array(38)].map((_, i) => <span key={`rain-${i}`} className="absolute -top-10 h-14 w-px bg-gradient-to-b from-cyan-200/0 via-cyan-200/55 to-fuchsia-400/0" style={{ left: `${(i * 7) % 100}%`, animation: `neonRain ${3 + (i % 5)}s linear ${i * .15}s infinite` }} />)}
+            {[...Array(7)].map((_, i) => <div key={`streak-${i}`} className="absolute h-[2px] w-56 bg-gradient-to-r from-transparent via-cyan-300 to-transparent blur-[1px]" style={{ top: `${12 + i * 12}%`, animation: `cyberStreak ${5 + i}s linear ${i * .55}s infinite` }} />)}
           </>
         )}
+
         {themePreset === "aurora" && (
           <>
-            <div className="absolute -top-24 left-[-10%] h-72 w-[120%] rotate-[-8deg] rounded-full bg-gradient-to-r from-emerald-400/25 via-cyan-300/20 to-violet-500/25 blur-3xl" style={{ animation: "auroraFlow 8s ease-in-out infinite" }} />
-            <div className="absolute top-40 left-[-15%] h-56 w-[130%] rotate-[7deg] rounded-full bg-gradient-to-r from-purple-500/20 via-blue-400/20 to-green-300/20 blur-3xl" style={{ animation: "auroraFlow 11s ease-in-out infinite reverse" }} />
-            {[...Array(20)].map((_, i) => <span key={i} className="absolute text-white/60" style={{ left: `${(i*17)%100}%`, top: `${(i*23)%80}%` }}>✦</span>)}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(186,230,253,.18),transparent_24%)]" />
+            <div className="absolute -top-28 left-[-14%] h-80 w-[135%] rotate-[-8deg] rounded-full bg-gradient-to-r from-emerald-400/35 via-cyan-300/25 to-violet-500/35 blur-3xl" style={{ animation: "auroraFlow 8s ease-in-out infinite, auroraPulse 6s ease-in-out infinite" }} />
+            <div className="absolute top-24 left-[-18%] h-64 w-[140%] rotate-[7deg] rounded-full bg-gradient-to-r from-purple-500/28 via-blue-400/28 to-green-300/28 blur-3xl" style={{ animation: "auroraFlow 12s ease-in-out infinite reverse" }} />
+            <div className="absolute bottom-0 left-[-8%] h-48 w-[120%] bg-gradient-to-t from-slate-100/40 to-transparent" style={{ clipPath: "polygon(0 100%,8% 62%,18% 84%,29% 50%,40% 78%,54% 44%,68% 76%,82% 52%,100% 88%,100% 100%)" }} />
+            {[...Array(34)].map((_, i) => <span key={i} className="absolute text-white/70" style={{ left: `${(i*17)%100}%`, top: `${(i*19)%78}%`, animation: `lightParticle ${6+(i%5)}s ease-in-out ${i*.16}s infinite` }}>✦</span>)}
           </>
         )}
+
         {themePreset === "frost" && (
           <>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(186,230,253,.28),transparent_24%),radial-gradient(circle_at_84%_70%,rgba(255,255,255,.24),transparent_32%)]" />
-            <div className="absolute bottom-0 left-[-8%] h-48 w-[120%] bg-gradient-to-t from-white/55 to-transparent" style={{ clipPath: "polygon(0 100%,8% 45%,16% 90%,25% 28%,38% 88%,50% 35%,62% 82%,72% 22%,84% 76%,94% 40%,100% 100%)" }} />
-            {[...Array(22)].map((_, i) => <span key={i} className="absolute -top-6 text-sm text-cyan-100/80" style={{ left: `${(i * 11) % 100}%`, animation: `snowDrift ${7 + (i % 5)}s linear ${i * 0.45}s infinite` }}>✦</span>)}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(186,230,253,.36),transparent_24%),radial-gradient(circle_at_84%_70%,rgba(255,255,255,.28),transparent_32%)]" />
+            <div className="absolute bottom-0 left-[-10%] h-[34vh] w-[125%] bg-gradient-to-t from-white/70 via-cyan-100/25 to-transparent" style={{ clipPath: "polygon(0 100%,7% 42%,13% 76%,23% 18%,36% 84%,48% 30%,60% 78%,72% 12%,84% 72%,95% 38%,100% 100%)" }} />
+            <div className="absolute bottom-0 left-[-8%] h-[22vh] w-[120%] bg-gradient-to-t from-slate-100/70 to-transparent" style={{ clipPath: "polygon(0 100%,10% 68%,22% 86%,31% 58%,48% 82%,60% 63%,74% 88%,86% 58%,100% 80%,100% 100%)" }} />
+            <div className="absolute left-[-12%] top-[22%] h-40 w-[120%] rounded-full bg-white/18 blur-2xl" style={{ animation: "frostMist 12s ease-in-out infinite" }} />
+            {[...Array(30)].map((_, i) => <span key={i} className="absolute -top-6 text-sm text-cyan-50/85 drop-shadow" style={{ left: `${(i * 11) % 100}%`, animation: `snowDrift ${8 + (i % 6)}s linear ${i * 0.32}s infinite`, "--snow-drift": `${i % 2 ? 42 : -36}px` }}>❄</span>)}
+            {[...Array(9)].map((_, i) => <span key={`ice-${i}`} className="absolute text-cyan-100/50" style={{ left: `${8 + (i * 13) % 84}%`, top: `${16 + (i * 9) % 70}%`, animation: `lightParticle ${7+(i%4)}s ease-in-out ${i*.2}s infinite` }}>✧</span>)}
           </>
         )}
+
         {themePreset === "sunset" && (
           <>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,rgba(251,146,60,.30),transparent_26%),radial-gradient(circle_at_20%_78%,rgba(244,63,94,.20),transparent_32%)]" />
-            <div className="absolute right-[-6rem] top-20 h-80 w-80 rounded-full bg-orange-300/25 blur-3xl" style={{ animation: "sunsetPulse 7s ease-in-out infinite" }} />
-            <div className="absolute left-[-10%] top-28 h-20 w-[120%] rounded-full bg-white/10 blur-xl" style={{ animation: "cloudSlide 16s ease-in-out infinite alternate" }} />
-            {[...Array(14)].map((_, i) => <span key={i} className="absolute text-amber-200/60" style={{ left: `${(i*13)%100}%`, top: `${15+(i*7)%70}%`, animation: `floatGlow ${8+(i%4)}s ease-in-out ${i*.2}s infinite` }}>✧</span>)}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(251,191,36,.42),transparent_22%),radial-gradient(circle_at_20%_78%,rgba(244,63,94,.24),transparent_32%)]" />
+            <div className="absolute right-[8%] top-[12%] h-40 w-40 rounded-full bg-amber-300/55 blur-2xl" style={{ animation: "sunsetPulse 7s ease-in-out infinite" }} />
+            <div className="absolute left-[-10%] top-28 h-20 w-[120%] rounded-full bg-white/14 blur-xl" style={{ animation: "cloudSlide 18s ease-in-out infinite alternate" }} />
+            <div className="absolute left-[-15%] top-48 h-16 w-[130%] rounded-full bg-pink-100/12 blur-xl" style={{ animation: "cloudSlide 23s ease-in-out infinite alternate-reverse" }} />
+            <div className="absolute bottom-0 left-0 h-56 w-full bg-gradient-to-t from-purple-950/30 via-orange-900/10 to-transparent" />
+            {[...Array(20)].map((_, i) => <span key={i} className="absolute text-amber-100/65" style={{ left: `${(i*13)%100}%`, top: `${15+(i*7)%70}%`, animation: `lightParticle ${8+(i%4)}s ease-in-out ${i*.2}s infinite` }}>✧</span>)}
           </>
         )}
+
         {themePreset === "midnight" && (
           <>
-            <div className="absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,.55) 1px, transparent 1px)", backgroundSize: "64px 64px", animation: "midnightStars 18s linear infinite" }} />
-            <div className="absolute left-[-10rem] top-[-8rem] h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl" />
-            <div className="absolute right-[-8rem] bottom-[-8rem] h-96 w-96 rounded-full bg-purple-500/15 blur-3xl" />
+            <div className="absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,.55) 1px, transparent 1px)", backgroundSize: "72px 72px", animation: "midnightStars 22s linear infinite" }} />
+            <div className="absolute left-[-10rem] top-[-8rem] h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl" style={{ animation: "nebulaMove 12s ease-in-out infinite" }} />
+            <div className="absolute right-[-8rem] bottom-[-8rem] h-96 w-96 rounded-full bg-purple-500/18 blur-3xl" style={{ animation: "nebulaMove 15s ease-in-out infinite reverse" }} />
+            <div className="absolute left-[18%] top-[18%] h-80 w-[42rem] rotate-[-18deg] rounded-full bg-blue-500/10 blur-3xl" style={{ animation: "auroraFlow 18s ease-in-out infinite" }} />
+            {[...Array(16)].map((_, i) => <span key={i} className="absolute text-blue-100/45" style={{ left: `${(i*19)%100}%`, top: `${(i*11)%80}%`, animation: `lightParticle ${8+(i%6)}s ease-in-out ${i*.25}s infinite` }}>✦</span>)}
           </>
         )}
       </div>
