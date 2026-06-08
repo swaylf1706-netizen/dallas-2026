@@ -914,17 +914,22 @@ function App() {
     }));
   };
 
+  const updateSpreadsheetNotes = (value) => {
+    updateSpreadsheet(() => ({ notes: value }));
+  };
+
   const applySpreadsheetTemplate = (templateKey) => {
     const template = spreadsheetTemplates[templateKey];
     if (!template) return;
     updateSpreadsheet(() => ({
       columns: template.columns,
-      rows: [
+      rows: template.rows || [
         {
           id: uid(),
           cells: Object.fromEntries(template.columns.map((column) => [column.id, column.type === "status" ? "Idea" : ""])),
         },
       ],
+      notes: template.notes ?? "",
     }));
   };
 
@@ -1360,16 +1365,28 @@ function App() {
               })}
             </div>
 
-            {spreadsheet.notes && (
-              <div className="mt-6 rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_55%,#ecfdf5_100%)] p-6 shadow-[0_20px_70px_rgba(79,70,229,0.12)]">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
-                  Dallas Payment Notes
+            <div className="mt-6 rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_55%,#ecfdf5_100%)] p-6 shadow-[0_20px_70px_rgba(79,70,229,0.12)]">
+              <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
+                    Dallas Payment Notes
+                  </div>
+                  <p className="mt-2 text-xs font-bold text-slate-400">
+                    Edit this section for refund rules, payment instructions, reminders, and final headcount notes.
+                  </p>
                 </div>
-                <div className="whitespace-pre-line text-sm font-bold leading-7 text-slate-700">
-                  {spreadsheet.notes}
-                </div>
+                <span className="rounded-2xl bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700">
+                  Live Saved
+                </span>
               </div>
-            )}
+
+              <textarea
+                value={spreadsheet.notes || ""}
+                onChange={(e) => updateSpreadsheetNotes(e.target.value)}
+                placeholder="Add trip payment notes here..."
+                className="min-h-[260px] w-full resize-y rounded-[1.5rem] border border-indigo-100 bg-white/80 px-5 py-4 text-sm font-bold leading-7 text-slate-700 outline-none shadow-inner focus:ring-4 focus:ring-indigo-100"
+              />
+            </div>
           </section>
         )}
 
