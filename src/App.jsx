@@ -1448,57 +1448,93 @@ function App() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {spreadsheetRows.map((row, index) => {
-                const titleColumn = spreadsheetColumns[0];
-                const title = row.cells?.[titleColumn.id] || `Row ${index + 1}`;
-                const statusColumn = spreadsheetColumns.find((column) => column.type === "status");
-                const linkColumn = spreadsheetColumns.find((column) => column.type === "link");
-                const moneyColumn = spreadsheetColumns.find((column) => column.type === "money");
-                const status = statusColumn ? row.cells?.[statusColumn.id] || "Idea" : "Idea";
-                const link = linkColumn ? row.cells?.[linkColumn.id] : "";
-                const money = moneyColumn ? row.cells?.[moneyColumn.id] : "";
-                return (
-                  <div key={row.id} className="mobile-card-motion rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff,#eef2ff_65%,#ecfdf5)] p-5 shadow-[0_20px_60px_rgba(79,70,229,0.14)]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-500">Sheet Card</p>
-                        <h3 className="mt-2 text-2xl font-black text-slate-950">{title}</h3>
-                      </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-black ${
-                        status === "Booked" ? "bg-emerald-100 text-emerald-700" :
-                        status === "Done" ? "bg-indigo-100 text-indigo-700" :
-                        status === "Rejected" ? "bg-red-100 text-red-700" :
-                        status === "Planning" ? "bg-amber-100 text-amber-700" :
-                        "bg-slate-100 text-slate-600"
-                      }`}>{status}</span>
+            {!isSpreadsheetEditing && (
+              <div className="mt-8">
+                <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg">
+                      <CheckCircle2 size={15} /> Saved Sheet Cards
                     </div>
-                    {money && <p className="mt-4 text-3xl font-black text-emerald-600">{currency(money)}</p>}
-                    <div className="mt-4 space-y-2">
-                      {spreadsheetColumns.filter((column) => column.id !== titleColumn.id).map((column) => (
-                        <div key={column.id} className="flex justify-between gap-3 rounded-2xl bg-white/75 px-3 py-2 text-xs font-bold text-slate-500">
-                          <span className="shrink-0">{column.title}</span>
-                          {column.type === "link" && row.cells?.[column.id] ? (
-                            <a href={row.cells[column.id].startsWith("http") ? row.cells[column.id] : `https://${row.cells[column.id]}`} target="_blank" rel="noreferrer" className="font-black text-indigo-600">Open Link</a>
-                          ) : column.type === "status" || column.id === "status" ? (
-                            <span className={`rounded-full px-2 py-1 text-[10px] font-black ${getStatusPillClass(row.cells?.[column.id] || "Waiting")}`}>{row.cells?.[column.id] || "—"}</span>
-                          ) : column.type === "paid" || column.id === "paid" ? (
-                            <span className={`rounded-full px-2 py-1 text-[10px] font-black ${getPaidPillClass(row.cells?.[column.id] || "No")}`}>{row.cells?.[column.id] || "—"}</span>
-                          ) : (
-                            <span className="text-right text-slate-900 break-words">{row.cells?.[column.id] || "—"}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {link && (
-                      <a href={link.startsWith("http") ? link : `https://${link}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">
-                        Open Link <ExternalLink size={15} />
-                      </a>
-                    )}
+                    <h3 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">Payment Cards</h3>
+                    <p className="mt-1 text-sm font-bold text-slate-500">Elegant saved view showing every detail for each person.</p>
                   </div>
-                );
-              })}
-            </div>
+                  <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700 shadow-sm">✓ Saved & locked</p>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {spreadsheetRows.map((row, index) => {
+                    const personColumn = spreadsheetColumns.find((column) => column.id === "person") || spreadsheetColumns[0];
+                    const statusColumn = spreadsheetColumns.find((column) => column.id === "status" || column.type === "status");
+                    const paidColumn = spreadsheetColumns.find((column) => column.id === "paid" || column.type === "paid");
+                    const personName = row.cells?.[personColumn.id] || `Person ${index + 1}`;
+                    const status = statusColumn ? row.cells?.[statusColumn.id] || "Waiting" : "Waiting";
+                    const paid = paidColumn ? row.cells?.[paidColumn.id] || "No" : "No";
+                    const initials = personName
+                      .split(" ")
+                      .map((word) => word[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase();
+
+                    return (
+                      <div key={row.id} className="mobile-card-motion group relative overflow-hidden rounded-[2.5rem] border border-indigo-200 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#eef2ff_48%,#ecfdf5_100%)] p-6 shadow-[0_30px_90px_rgba(79,70,229,0.18)] ring-4 ring-indigo-50 hover:shadow-[0_35px_110px_rgba(79,70,229,0.26)]">
+                        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
+                        <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-indigo-300/40 blur-3xl" />
+                        <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-emerald-300/45 blur-3xl" />
+
+                        <div className="relative flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-slate-950 text-lg font-black text-white shadow-xl shadow-slate-300">
+                              {initials || index + 1}
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Dallas 2026</p>
+                              <h3 className="mt-1 text-3xl font-black tracking-tight text-slate-950">{personName}</h3>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${getStatusPillClass(status)}`}>{status}</span>
+                            <span className={`rounded-full px-3 py-1 text-xs font-black shadow-sm ${getPaidPillClass(paid)}`}>{paid}</span>
+                          </div>
+                        </div>
+
+                        <div className="relative mt-6 grid gap-3">
+                          {spreadsheetColumns
+                            .filter((column) => column.id !== personColumn.id)
+                            .map((column) => {
+                              const value = row.cells?.[column.id] || "—";
+                              const isStatus = column.type === "status" || column.id === "status";
+                              const isPaid = column.type === "paid" || column.id === "paid";
+                              const isLink = column.type === "link" && value !== "—";
+
+                              return (
+                                <div key={column.id} className="rounded-[1.35rem] border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{column.title}</p>
+                                  <div className="mt-2">
+                                    {isLink ? (
+                                      <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-indigo-100">
+                                        Open Link <ExternalLink size={13} />
+                                      </a>
+                                    ) : isStatus ? (
+                                      <span className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${getStatusPillClass(value === "—" ? "Waiting" : value)}`}>{value}</span>
+                                    ) : isPaid ? (
+                                      <span className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${getPaidPillClass(value === "—" ? "No" : value)}`}>{value}</span>
+                                    ) : column.type === "money" || column.type === "moneyText" || column.title.toLowerCase().includes("amount") || column.title.toLowerCase().includes("refund") ? (
+                                      <p className="text-2xl font-black text-emerald-600">{value}</p>
+                                    ) : (
+                                      <p className="whitespace-pre-wrap break-words text-sm font-black leading-6 text-slate-800">{value}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="relative mt-8 overflow-hidden rounded-[2.5rem] border border-indigo-200 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_42%,#ecfdf5_100%)] p-7 shadow-[0_30px_100px_rgba(79,70,229,0.22)] ring-4 ring-indigo-100">
               <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-indigo-300/40 blur-3xl" />
