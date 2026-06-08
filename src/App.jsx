@@ -234,6 +234,8 @@ function App() {
       content: "Hey, I’m Dallas Assistant. Ask me about the trip plan, spreadsheet, final picks, or ideas for the itinerary.",
     },
   ]);
+  const [isNotesEditing, setIsNotesEditing] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
 
@@ -914,8 +916,27 @@ function App() {
     }));
   };
 
-  const updateSpreadsheetNotes = (value) => {
-    updateSpreadsheet(() => ({ notes: value }));
+  const startEditingSpreadsheetNotes = () => {
+    if (!user) {
+      handleLogin();
+      return;
+    }
+    setNotesDraft(spreadsheet.notes || "");
+    setIsNotesEditing(true);
+  };
+
+  const saveSpreadsheetNotes = () => {
+    if (!user) {
+      handleLogin();
+      return;
+    }
+    updateSpreadsheet(() => ({ notes: notesDraft }));
+    setIsNotesEditing(false);
+  };
+
+  const cancelSpreadsheetNotes = () => {
+    setNotesDraft(spreadsheet.notes || "");
+    setIsNotesEditing(false);
   };
 
   const applySpreadsheetTemplate = (templateKey) => {
@@ -1372,20 +1393,47 @@ function App() {
                     Dallas Payment Notes
                   </div>
                   <p className="mt-2 text-xs font-bold text-slate-400">
-                    Edit this section for refund rules, payment instructions, reminders, and final headcount notes.
+                    Saved notes stay locked until someone clicks Edit Notes.
                   </p>
                 </div>
-                <span className="rounded-2xl bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700">
-                  Live Saved
-                </span>
+
+                {!isNotesEditing ? (
+                  <button
+                    onClick={startEditingSpreadsheetNotes}
+                    className="rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-black text-white shadow-lg shadow-indigo-200 hover:bg-slate-950"
+                  >
+                    Edit Notes
+                  </button>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={saveSpreadsheetNotes}
+                      className="rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700"
+                    >
+                      Save Notes
+                    </button>
+                    <button
+                      onClick={cancelSpreadsheetNotes}
+                      className="rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-600 shadow-sm hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <textarea
-                value={spreadsheet.notes || ""}
-                onChange={(e) => updateSpreadsheetNotes(e.target.value)}
-                placeholder="Add trip payment notes here..."
-                className="min-h-[260px] w-full resize-y rounded-[1.5rem] border border-indigo-100 bg-white/80 px-5 py-4 text-sm font-bold leading-7 text-slate-700 outline-none shadow-inner focus:ring-4 focus:ring-indigo-100"
-              />
+              {!isNotesEditing ? (
+                <div className="min-h-[220px] whitespace-pre-wrap rounded-[1.5rem] border border-indigo-100 bg-white/85 px-5 py-4 text-sm font-bold leading-7 text-slate-700 shadow-inner">
+                  {spreadsheet.notes || "No notes saved yet."}
+                </div>
+              ) : (
+                <textarea
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  placeholder="Add trip payment notes here..."
+                  className="min-h-[260px] w-full resize-y rounded-[1.5rem] border border-indigo-100 bg-white/90 px-5 py-4 text-sm font-bold leading-7 text-slate-700 outline-none shadow-inner focus:ring-4 focus:ring-indigo-100"
+                />
+              )}
             </div>
           </section>
         )}
