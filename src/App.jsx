@@ -851,6 +851,39 @@ function App() {
     ? spreadsheetRows.filter((row) => String(row.cells?.[spreadsheetPaidColumn.id] || "").toLowerCase() !== "no").length
     : 0;
 
+  const spreadsheetTableSize = {
+    normal: {
+      head: "min-w-[180px] border-l border-white/10 px-3 py-3 text-left align-top",
+      rowNumber: "border-t border-slate-100 px-3 py-3 text-sm font-black text-slate-400",
+      cell: "border-l border-t border-slate-100 px-3 py-3 align-top",
+      input: "w-full min-w-[170px] rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100",
+      display: "min-w-[170px] rounded-2xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700",
+      select: "w-full min-w-[170px] rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100",
+      linkWrap: "flex min-w-[220px] items-center gap-2",
+      linkInput: "min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:ring-4 focus:ring-indigo-100",
+    },
+    compact: {
+      head: "min-w-[135px] border-l border-white/10 px-2 py-2 text-left align-top",
+      rowNumber: "border-t border-slate-100 px-2 py-2 text-xs font-black text-slate-400",
+      cell: "border-l border-t border-slate-100 px-2 py-2 align-top",
+      input: "w-full min-w-[125px] rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100",
+      display: "min-w-[125px] rounded-xl bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-700",
+      select: "w-full min-w-[125px] rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-black text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100",
+      linkWrap: "flex min-w-[160px] items-center gap-1.5",
+      linkInput: "min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold outline-none focus:ring-4 focus:ring-indigo-100",
+    },
+    tiny: {
+      head: "min-w-[105px] border-l border-white/10 px-1.5 py-1.5 text-left align-top",
+      rowNumber: "border-t border-slate-100 px-2 py-1.5 text-[11px] font-black text-slate-400",
+      cell: "border-l border-t border-slate-100 px-1.5 py-1.5 align-top",
+      input: "w-full min-w-[95px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100",
+      display: "min-w-[95px] rounded-lg bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-700",
+      select: "w-full min-w-[95px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100",
+      linkWrap: "flex min-w-[125px] items-center gap-1",
+      linkInput: "min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-indigo-100",
+    },
+  }[spreadsheetViewMode] || {};
+
   const requireEditUser = () => {
     if (user) return true;
     handleLogin();
@@ -1328,6 +1361,17 @@ function App() {
                   Reset to Dallas Payment Split
                 </button>
                 {!user && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700">Sign in to edit the spreadsheet.</p>}
+                <div className="flex items-center gap-1 rounded-2xl bg-white/90 p-1 shadow-sm">
+                  {[ ["normal", "Normal"], ["compact", "Compact"], ["tiny", "Tiny"] ].map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      onClick={() => setSpreadsheetViewMode(mode)}
+                      className={spreadsheetViewMode === mode ? "rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white" : "rounded-xl px-3 py-2 text-[11px] font-black text-slate-500 hover:bg-slate-100"}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <p className="ml-auto rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700">{isSpreadsheetEditing ? "Editing draft" : "✓ Saved & locked"}</p>
               </div>
             </div>
@@ -1339,7 +1383,7 @@ function App() {
                     <tr>
                       <th className="w-14 px-3 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-300">#</th>
                       {spreadsheetColumns.map((column) => (
-                        <th key={column.id} className="min-w-[180px] border-l border-white/10 px-3 py-3 text-left align-top">
+                        <th key={column.id} className={spreadsheetTableSize.head}>
                           <div className="flex items-center gap-2">
                             <input
                               value={column.title}
@@ -1362,7 +1406,7 @@ function App() {
                   <tbody>
                     {spreadsheetRows.map((row, rowIndex) => (
                       <tr key={row.id} className="group hover:bg-indigo-50/50">
-                        <td className="border-t border-slate-100 px-3 py-3 text-sm font-black text-slate-400">{rowIndex + 1}</td>
+                        <td className={spreadsheetTableSize.rowNumber}>{rowIndex + 1}</td>
                         {spreadsheetColumns.map((column) => {
                           const value = row.cells?.[column.id] || "";
                           const isLocked = !isSpreadsheetEditing;
@@ -1372,7 +1416,7 @@ function App() {
                           const displayValue = value || "—";
 
                           return (
-                            <td key={column.id} className="border-l border-t border-slate-100 px-3 py-3 align-top">
+                            <td key={column.id} className={spreadsheetTableSize.cell}>
                               {isLocked ? (
                                 column.type === "link" && value ? (
                                   <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noreferrer" className="inline-flex min-w-[120px] items-center justify-center rounded-2xl bg-indigo-600 px-3 py-2 text-xs font-black text-white">
@@ -1383,7 +1427,7 @@ function App() {
                                 ) : column.type === "paid" || column.id === "paid" ? (
                                   <span className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${getPaidPillClass(value || "No")}`}>{displayValue}</span>
                                 ) : (
-                                  <div className="min-w-[170px] rounded-2xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700">{displayValue}</div>
+                                  <div className={spreadsheetTableSize.display}>{displayValue}</div>
                                 )
                               ) : column.type === "status" || column.id === "status" ? (
                                 <select
@@ -1405,18 +1449,18 @@ function App() {
                                 <select
                                   value={value}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
-                                  className="w-full min-w-[170px] rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100"
+                                  className={spreadsheetTableSize.select}
                                 >
                                   <option value="">Select person</option>
                                   {personChoices.map((name) => <option key={name} value={name}>{name}</option>)}
                                 </select>
                               ) : column.type === "link" ? (
-                                <div className="flex min-w-[220px] items-center gap-2">
+                                <div className={spreadsheetTableSize.linkWrap}>
                                   <input
                                     value={value}
                                     onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
                                     placeholder="Paste link"
-                                    className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:ring-4 focus:ring-indigo-100"
+                                    className={spreadsheetTableSize.linkInput}
                                   />
                                   {value && (
                                     <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noreferrer" className="rounded-2xl bg-indigo-600 px-3 py-2 text-xs font-black text-white">
@@ -1430,7 +1474,7 @@ function App() {
                                   value={value}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
                                   placeholder={column.type === "money" || column.type === "moneyText" ? "$0" : "Type here"}
-                                  className="w-full min-w-[170px] rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100"
+                                  className={spreadsheetTableSize.input}
                                 />
                               )}
                             </td>
@@ -1472,27 +1516,12 @@ function App() {
                     <span className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700 shadow-sm">Waiting: {spreadsheetWaitingCount}</span>
                     <span className="rounded-2xl bg-indigo-50 px-4 py-3 text-xs font-black text-indigo-700 shadow-sm">Paid Notes: {spreadsheetPaidCount}</span>
                     <span className="rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black text-white shadow-sm">✓ Saved</span>
-                    <div className="flex rounded-2xl bg-white p-1 shadow-sm">
-                      {[
-                        ["comfort", "Comfort"],
-                        ["compact", "Compact"],
-                        ["ultra", "Ultra"],
-                      ].map(([mode, label]) => (
-                        <button
-                          key={mode}
-                          onClick={() => setSpreadsheetViewMode(mode)}
-                          className={spreadsheetViewMode === mode ? "rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white" : "rounded-xl px-3 py-2 text-[11px] font-black text-slate-500 hover:bg-slate-100"}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
                     <button onClick={() => setExpandedSpreadsheetCards(Object.fromEntries(spreadsheetRows.map((row) => [row.id, true])))} className="rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm">Expand All</button>
                     <button onClick={() => setExpandedSpreadsheetCards({})} className="rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm">Collapse All</button>
                   </div>
                 </div>
 
-                <div className={spreadsheetViewMode === "comfort" ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" : spreadsheetViewMode === "compact" ? "grid gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5" : "grid gap-2"}>
+                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
                   {spreadsheetRows.map((row, index) => {
                     const personColumn = spreadsheetColumns.find((column) => column.id === "person") || spreadsheetColumns[0];
                     const statusColumn = spreadsheetColumns.find((column) => column.id === "status" || column.type === "status");
@@ -1516,44 +1545,38 @@ function App() {
                     const detailColumns = spreadsheetColumns.filter((column) => column.id !== personColumn.id);
 
                     return (
-                      <div key={row.id} className={spreadsheetViewMode === "ultra" ? "mobile-card-motion relative overflow-hidden rounded-2xl border border-indigo-100 bg-white/90 p-3 shadow-[0_10px_28px_rgba(79,70,229,0.10)] ring-1 ring-white hover:shadow-[0_16px_40px_rgba(79,70,229,0.16)]" : spreadsheetViewMode === "compact" ? "mobile-card-motion relative overflow-hidden rounded-[1.35rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_52%,#eef2ff_100%)] p-3 shadow-[0_14px_36px_rgba(79,70,229,0.11)] ring-1 ring-white hover:shadow-[0_18px_48px_rgba(79,70,229,0.16)]" : "mobile-card-motion relative overflow-hidden rounded-[1.65rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] p-4 shadow-[0_18px_45px_rgba(79,70,229,0.12)] ring-1 ring-white hover:shadow-[0_24px_60px_rgba(79,70,229,0.18)]"}>
+                      <div key={row.id} className="mobile-card-motion relative overflow-hidden rounded-[1.35rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_52%,#eef2ff_100%)] p-3 shadow-[0_14px_36px_rgba(79,70,229,0.11)] ring-1 ring-white hover:shadow-[0_18px_48px_rgba(79,70,229,0.16)]">
                         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
                         <div className="absolute -right-10 -top-10 h-24 w-24 rounded-full bg-indigo-200/50 blur-2xl" />
                         <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-emerald-200/50 blur-2xl" />
 
                         <div className="relative flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-3">
-                            <div className={spreadsheetViewMode === "ultra" ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white shadow-lg shadow-slate-300" : "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white shadow-lg shadow-slate-300"}>
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white shadow-lg shadow-slate-300">
                               {initials || index + 1}
                             </div>
                             <div className="min-w-0">
                               <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-500">Dallas 2026</p>
-                              <h3 className={spreadsheetViewMode === "ultra" ? "truncate text-base font-black tracking-tight text-slate-950" : "truncate text-xl font-black tracking-tight text-slate-950"}>{personName}</h3>
+                              <h3 className="truncate text-xl font-black tracking-tight text-slate-950">{personName}</h3>
                             </div>
                           </div>
                           <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${getStatusPillClass(status)}`}>{status}</span>
                         </div>
 
-                        <div className={spreadsheetViewMode === "ultra" ? "relative mt-2 grid grid-cols-3 gap-2" : "relative mt-4 grid grid-cols-2 gap-2"}>
-                          <div className={spreadsheetViewMode === "ultra" ? "rounded-xl bg-white/85 p-2 shadow-sm backdrop-blur" : "rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur"}>
+                        <div className="relative mt-4 grid grid-cols-2 gap-2">
+                          <div className="rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur">
                             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Current</p>
-                            <p className={spreadsheetViewMode === "ultra" ? "mt-1 truncate text-sm font-black text-emerald-600" : "mt-1 truncate text-lg font-black text-emerald-600"}>{currentAmount}</p>
+                            <p className="mt-1 truncate text-lg font-black text-emerald-600">{currentAmount}</p>
                           </div>
-                          <div className={spreadsheetViewMode === "ultra" ? "rounded-xl bg-white/85 p-2 shadow-sm backdrop-blur" : "rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur"}>
+                          <div className="rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur">
                             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">8 People</p>
-                            <p className={spreadsheetViewMode === "ultra" ? "mt-1 truncate text-sm font-black text-slate-950" : "mt-1 truncate text-lg font-black text-slate-950"}>{finalAmount}</p>
+                            <p className="mt-1 truncate text-lg font-black text-slate-950">{finalAmount}</p>
                           </div>
-                          {spreadsheetViewMode === "ultra" && (
-                            <div className="rounded-xl bg-emerald-50/90 p-2 shadow-sm backdrop-blur">
-                              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">Refund</p>
-                              <p className="mt-1 truncate text-sm font-black text-emerald-700">{refundAmount}</p>
-                            </div>
-                          )}
                         </div>
 
-                        <div className={spreadsheetViewMode === "ultra" ? "relative mt-2 flex items-center justify-between gap-2" : "relative mt-3 flex items-center justify-between gap-2"}>
+                        <div className="relative mt-3 flex items-center justify-between gap-2">
                           <span className={`truncate rounded-full px-3 py-1.5 text-[10px] font-black shadow-sm ${getPaidPillClass(paid)}`}>{paid}</span>
-                          {spreadsheetViewMode !== "ultra" && <span className="truncate rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black text-emerald-700 shadow-sm">Refund: {refundAmount}</span>}
+                          <span className="truncate rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black text-emerald-700 shadow-sm">Refund: {refundAmount}</span>
                         </div>
 
                         {isExpanded && (
@@ -1586,7 +1609,7 @@ function App() {
 
                         <button
                           onClick={() => setExpandedSpreadsheetCards((prev) => ({ ...prev, [row.id]: !prev[row.id] }))}
-                          className={spreadsheetViewMode === "ultra" ? "relative mt-2 w-full rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white shadow-lg shadow-slate-200 hover:bg-indigo-700" : "relative mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-slate-200 hover:bg-indigo-700"}
+                          className="relative mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-slate-200 hover:bg-indigo-700"
                         >
                           {isExpanded ? "Hide Details" : "View Details"}
                         </button>
