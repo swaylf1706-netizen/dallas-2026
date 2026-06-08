@@ -33,6 +33,8 @@ import {
   Search,
   Palette,
   MousePointer2,
+  SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 
 const TRIP_START = new Date("2026-07-29T00:00:00");
@@ -247,6 +249,8 @@ function App() {
   const [themePreset, setThemePreset] = useState(() => localStorage.getItem("dallasTheme") || "royal");
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
+  const [zoomPickerOpen, setZoomPickerOpen] = useState(false);
   const lastCursorWrite = useRef(0);
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
@@ -916,14 +920,14 @@ function App() {
       linkInput: "min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold outline-none focus:ring-4 focus:ring-indigo-100",
     },
     tiny: {
-      head: "min-w-[72px] border-l border-white/10 px-1 py-1 text-left align-top text-[10px]",
-      rowNumber: "border-t border-slate-100 px-1 py-1 text-[9px] font-black text-slate-400",
-      cell: "border-l border-t border-slate-100 px-1 py-1 align-top",
-      input: "w-full min-w-[66px] rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
-      display: "min-w-[66px] rounded-md bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-700",
-      select: "w-full min-w-[66px] rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-black text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
-      linkWrap: "flex min-w-[88px] items-center gap-1",
-      linkInput: "min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold outline-none focus:ring-1 focus:ring-indigo-100",
+      head: "min-w-[46px] border-l border-white/10 px-0.5 py-0.5 text-left align-top text-[8px] leading-tight",
+      rowNumber: "border-t border-slate-100 px-0.5 py-0.5 text-[8px] font-black text-slate-400",
+      cell: "border-l border-t border-slate-100 px-0.5 py-0.5 align-top",
+      input: "w-full min-w-[44px] rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[8px] font-semibold leading-tight text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
+      display: "min-w-[44px] rounded bg-slate-50 px-1 py-0.5 text-[8px] font-bold leading-tight text-slate-700",
+      select: "w-full min-w-[44px] rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[8px] font-black leading-tight text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
+      linkWrap: "flex min-w-[56px] items-center gap-0.5",
+      linkInput: "min-w-0 flex-1 rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[8px] font-semibold leading-tight outline-none focus:ring-1 focus:ring-indigo-100",
     },
   }[spreadsheetViewMode] || {};
 
@@ -1124,15 +1128,39 @@ function App() {
   const themeStyles = {
     royal: {
       light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#eef2ff_0,#f8fafc_32%,#f8fafc_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#1e1b4b_0,#020617_42%,#020617_100%)] text-white",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#312e81_0,#020617_46%,#000_100%)] text-white",
+    },
+    galaxy: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_10%_10%,#ddd6fe_0,#fdf4ff_32%,#eff6ff_72%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_15%_15%,#7c3aed_0,#312e81_22%,#020617_62%,#000_100%)] text-white",
+    },
+    cyber: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#cffafe_0,#ecfeff_30%,#f8fafc_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#06b6d4_0,#164e63_24%,#020617_62%,#000_100%)] text-white",
+    },
+    aurora: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_10%_20%,#bbf7d0_0,#dbeafe_36%,#fae8ff_72%,#fff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_12%_18%,#22c55e_0,#2563eb_28%,#581c87_58%,#020617_100%)] text-white",
+    },
+    obsidian: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top,#e5e7eb_0,#f8fafc_44%,#fff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_50%_-10%,#334155_0,#0f172a_35%,#020617_78%,#000_100%)] text-white",
     },
     emerald: {
       light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#ecfdf5_0,#f8fafc_36%,#f0fdfa_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#064e3b_0,#022c22_42%,#020617_100%)] text-white",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#10b981_0,#064e3b_34%,#020617_100%)] text-white",
     },
     sunset: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#fff7ed_0,#fff1f2_38%,#f8fafc_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#7c2d12_0,#431407_42%,#020617_100%)] text-white",
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#ffedd5_0,#fff1f2_38%,#f8fafc_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#f97316_0,#7c2d12_35%,#020617_100%)] text-white",
+    },
+    rose: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#ffe4e6_0,#fdf2f8_36%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#e11d48_0,#831843_35%,#020617_100%)] text-white",
+    },
+    gold: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#fef3c7_0,#fffbeb_38%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#f59e0b_0,#78350f_38%,#020617_100%)] text-white",
     },
     midnight: {
       light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#e0f2fe_0,#f8fafc_35%,#eef2ff_100%)] text-slate-950",
@@ -1141,10 +1169,16 @@ function App() {
   };
 
   const themeChoices = [
-    ["royal", "Royal"],
-    ["emerald", "Emerald"],
-    ["sunset", "Sunset"],
-    ["midnight", "Midnight"],
+    ["royal", "Royal", "bg-gradient-to-br from-indigo-500 to-violet-700"],
+    ["galaxy", "Galaxy", "bg-gradient-to-br from-fuchsia-500 via-violet-600 to-sky-500"],
+    ["cyber", "Cyber", "bg-gradient-to-br from-cyan-400 to-blue-700"],
+    ["aurora", "Aurora", "bg-gradient-to-br from-emerald-400 via-sky-500 to-purple-600"],
+    ["obsidian", "Obsidian", "bg-gradient-to-br from-slate-700 to-black"],
+    ["emerald", "Emerald", "bg-gradient-to-br from-emerald-400 to-green-800"],
+    ["sunset", "Sunset", "bg-gradient-to-br from-orange-400 to-rose-600"],
+    ["rose", "Rose", "bg-gradient-to-br from-pink-400 to-rose-700"],
+    ["gold", "Gold", "bg-gradient-to-br from-amber-300 to-yellow-700"],
+    ["midnight", "Midnight", "bg-gradient-to-br from-blue-950 to-slate-950"],
   ];
 
   const pageClass = themeStyles[themePreset]?.[dark ? "dark" : "light"] || themeStyles.royal[dark ? "dark" : "light"];
@@ -1167,10 +1201,12 @@ function App() {
       action: () => setActive(tab.id),
     })),
     { id: "toggle-dark", label: dark ? "Switch to Light Mode" : "Switch to Dark Mode", helper: "Theme", action: () => setDark((prev) => !prev) },
-    { id: "theme-royal", label: "Use Royal Theme", helper: "Theme", action: () => setThemePreset("royal") },
-    { id: "theme-emerald", label: "Use Emerald Theme", helper: "Theme", action: () => setThemePreset("emerald") },
-    { id: "theme-sunset", label: "Use Sunset Theme", helper: "Theme", action: () => setThemePreset("sunset") },
-    { id: "theme-midnight", label: "Use Midnight Theme", helper: "Theme", action: () => setThemePreset("midnight") },
+    ...themeChoices.map(([themeId, themeLabel]) => ({
+      id: `theme-${themeId}`,
+      label: `Use ${themeLabel} Theme`,
+      helper: "Theme",
+      action: () => setThemePreset(themeId),
+    })),
     { id: "spreadsheet-edit", label: "Edit Spreadsheet", helper: "Spreadsheet", action: () => { setActive("budget"); startEditingSpreadsheet(); } },
     { id: "spreadsheet-tiny", label: "Tiny Spreadsheet Zoom", helper: "Spreadsheet", action: () => { setActive("budget"); setSpreadsheetViewMode("tiny"); } },
     { id: "assistant", label: "Open Dallas Assistant", helper: "AI", action: () => setAssistantOpen(true) },
@@ -1269,21 +1305,39 @@ function App() {
                   {dark ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
 
-                <button onClick={() => setCommandOpen(true)} className={dark ? "inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black text-white" : "inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm"}>
-                  <Search size={16} /> Ctrl K
-                </button>
-
-                <div className="flex items-center gap-1 rounded-2xl bg-white/80 p-1 shadow-sm">
-                  {themeChoices.map(([themeId, themeLabel]) => (
-                    <button
-                      key={themeId}
-                      onClick={() => setThemePreset(themeId)}
-                      title={`${themeLabel} theme`}
-                      className={themePreset === themeId ? "rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white" : "rounded-xl px-3 py-2 text-[11px] font-black text-slate-500 hover:bg-slate-100"}
-                    >
-                      {themeLabel}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <button
+                    onClick={() => setThemePickerOpen((prev) => !prev)}
+                    className={dark ? "inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black text-white shadow-lg" : "inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-lg shadow-slate-200"}
+                    title="Open theme picker"
+                  >
+                    <Palette size={18} />
+                    <Sparkles size={14} className="text-amber-400" />
+                  </button>
+                  {themePickerOpen && (
+                    <div className={dark ? "absolute right-0 top-14 z-[80] w-[340px] rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 text-white shadow-2xl backdrop-blur-2xl" : "absolute right-0 top-14 z-[80] w-[340px] rounded-[2rem] border border-slate-200 bg-white/95 p-4 text-slate-950 shadow-2xl backdrop-blur-2xl"}>
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-black">Choose Theme</p>
+                          <p className="text-xs font-bold text-slate-400">Make Dallas 2026 feel different.</p>
+                        </div>
+                        <button onClick={() => setThemePickerOpen(false)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">Close</button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {themeChoices.map(([themeId, themeLabel, swatch]) => (
+                          <button
+                            key={themeId}
+                            onClick={() => { setThemePreset(themeId); setThemePickerOpen(false); }}
+                            className={themePreset === themeId ? "rounded-2xl border-2 border-indigo-500 bg-indigo-50 p-2 text-left shadow-lg" : dark ? "rounded-2xl border border-white/10 bg-white/5 p-2 text-left hover:bg-white/10" : "rounded-2xl border border-slate-200 bg-slate-50 p-2 text-left hover:bg-white"}
+                          >
+                            <div className={`mb-2 h-14 rounded-xl ${swatch}`} />
+                            <p className="text-xs font-black">{themeLabel}</p>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-3 text-[11px] font-bold text-slate-400">Shortcut: press Ctrl/⌘ + K to search commands.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1479,26 +1533,33 @@ function App() {
                 <button onClick={exportSpreadsheetCsv} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm">
                   Export CSV
                 </button>
-                <select disabled={!isSpreadsheetEditing} onChange={(e) => e.target.value && applySpreadsheetTemplate(e.target.value)} defaultValue="" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 outline-none">
-                  <option value="">Use Template</option>
-                  {Object.entries(spreadsheetTemplates).map(([key, template]) => (
-                    <option key={key} value={key}>{template.name}</option>
-                  ))}
-                </select>
                 <button disabled={!isSpreadsheetEditing} onClick={() => applySpreadsheetTemplate("payment")} className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-emerald-200 disabled:cursor-not-allowed disabled:opacity-40">
                   Reset to Dallas Payment Split
                 </button>
                 {!user && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700">Sign in to edit the spreadsheet.</p>}
-                <div className="flex items-center gap-1 rounded-2xl bg-white/90 p-1 shadow-sm">
-                  {[ ["normal", "Normal"], ["compact", "Compact"], ["tiny", "Tiny"] ].map(([mode, label]) => (
-                    <button
-                      key={mode}
-                      onClick={() => setSpreadsheetViewMode(mode)}
-                      className={spreadsheetViewMode === mode ? "rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white" : "rounded-xl px-3 py-2 text-[11px] font-black text-slate-500 hover:bg-slate-100"}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <button
+                    onClick={() => setZoomPickerOpen((prev) => !prev)}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm"
+                    title="Spreadsheet zoom"
+                  >
+                    <SlidersHorizontal size={17} /> {spreadsheetViewMode === "tiny" ? "Tiny" : spreadsheetViewMode === "compact" ? "Compact" : "Normal"}
+                  </button>
+                  {zoomPickerOpen && (
+                    <div className="absolute right-0 top-14 z-[70] w-64 rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-2xl">
+                      <p className="px-2 pb-2 text-xs font-black uppercase tracking-wider text-slate-400">Spreadsheet Zoom</p>
+                      {[ ["normal", "Normal", "Comfortable editing"], ["compact", "Compact", "More visible at once"], ["tiny", "Tiny", "Maximum zoomed-out view"] ].map(([mode, label, helper]) => (
+                        <button
+                          key={mode}
+                          onClick={() => { setSpreadsheetViewMode(mode); setZoomPickerOpen(false); }}
+                          className={spreadsheetViewMode === mode ? "mb-1 w-full rounded-2xl bg-slate-950 px-4 py-3 text-left text-sm font-black text-white" : "mb-1 w-full rounded-2xl px-4 py-3 text-left text-sm font-black text-slate-700 hover:bg-slate-100"}
+                        >
+                          <span className="block">{label}</span>
+                          <span className="block text-[11px] font-bold opacity-70">{helper}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <p className="ml-auto rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700">{isSpreadsheetEditing ? "Editing draft" : "✓ Saved & locked"}</p>
               </div>
