@@ -62,6 +62,37 @@ const starter = {
   },
   expenses: [],
   settlements: [],
+  spreadsheet: {
+    columns: [
+      { id: "item", title: "Item" },
+      { id: "paidBy", title: "Paid By" },
+      { id: "amount", title: "Amount" },
+      { id: "notes", title: "Notes" },
+      { id: "link", title: "Link" },
+    ],
+    rows: [
+      {
+        id: "starter-row-1",
+        cells: {
+          item: "Airbnb",
+          paidBy: "Nathan",
+          amount: "2315",
+          notes: "Paid already",
+          link: "",
+        },
+      },
+      {
+        id: "starter-row-2",
+        cells: {
+          item: "Car Rental",
+          paidBy: "Nathan",
+          amount: "1147",
+          notes: "Split later",
+          link: "",
+        },
+      },
+    ],
+  },
   presence: {},
   notifications: [],
 };
@@ -74,7 +105,7 @@ const tabs = [
   { id: "food", label: "Food", icon: Utensils },
   { id: "shopping", label: "Shopping", icon: ShoppingBag },
   { id: "final", label: "Final Picks", icon: Trophy },
-  { id: "budget", label: "Budget", icon: Wallet },
+  { id: "budget", label: "Spreadsheet", icon: Wallet },
 ];
 
 const labels = {
@@ -85,7 +116,7 @@ const labels = {
   food: "Food",
   shopping: "Shopping",
   final: "Final Picks",
-  budget: "Budget Tracker",
+  budget: "Spreadsheet",
 };
 
 const boardCategories = ["flights", "stay", "cars", "activities", "food", "shopping"];
@@ -162,7 +193,7 @@ function App() {
   const [assistantMessages, setAssistantMessages] = useState([
     {
       role: "assistant",
-      content: "Hey, I’m Dallas Assistant. Ask me about the trip plan, budget, final picks, or ideas for the itinerary.",
+      content: "Hey, I’m Dallas Assistant. Ask me about the trip plan, spreadsheet, final picks, or ideas for the itinerary.",
     },
   ]);
   const initialCloudLoad = useRef(false);
@@ -181,6 +212,10 @@ function App() {
     food: (cloudData.food || []).map(normalizeOption),
     shopping: (cloudData.shopping || []).map(normalizeOption),
     finalPicks: { ...starter.finalPicks, ...(cloudData.finalPicks || {}) },
+    spreadsheet: {
+      columns: cloudData.spreadsheet?.columns?.length ? cloudData.spreadsheet.columns : starter.spreadsheet.columns,
+      rows: cloudData.spreadsheet?.rows || starter.spreadsheet.rows,
+    },
     expenses: (cloudData.expenses || []).map((expense) => ({
       splitMode: expense.splitMode || "equal",
       includedPeople: expense.includedPeople || [],
@@ -331,6 +366,7 @@ function App() {
             food: data.food,
             shopping: data.shopping,
             finalPicks: data.finalPicks,
+            spreadsheet: data.spreadsheet,
             expenses: data.expenses,
             settlements: data.settlements,
           },
@@ -544,6 +580,139 @@ function App() {
       ...prev,
       finalPicks: { ...prev.finalPicks, [category]: optionId },
     }));
+  };
+
+  const spreadsheet = data.spreadsheet || starter.spreadsheet;
+
+  const addSpreadsheetRow = () => {
+    if (!user) {
+      handleLogin();
+      return;
+    }
+
+    updateData((prev) => ({
+      ...prev,
+      spreadsheet: {
+        ...(prev.spreadsheet || starter.spreadsheet),
+        rows: [
+          ...((prev.spreadsheet || starter.spreadsheet).rows || []),
+          {
+            id: uid(),
+            cells: {},
+          },
+        ],
+      },
+    }));
+  };
+
+  const addSpreadsheetColumn = () => {
+    if (!user) {
+      handleLogin();
+      return;
+    }
+
+    const newColumnId = `col_${Date.now()}`;
+
+    updateData((prev) => {
+      const sheet = prev.spreadsheet || starter.spreadsheet;
+      return {
+        ...prev,
+        spreadsheet: {
+          ...sheet,
+          columns: [...(sheet.columns || []), { id: newColumnId, title: "New Column" }],
+          rows: (sheet.rows || []).map((row) => ({
+            ...row,
+            cells: {
+              ...(row.cells || {}),
+              [newColumnId]: "",
+            },
+          })),
+        },
+      };
+    });
+  };
+
+  const updateSpreadsheetCell = (rowId, columnId, value) => {
+    if (!user) return;
+
+    updateData((prev) => {
+      const sheet = prev.spreadsheet || starter.spreadsheet;
+      return {
+        ...prev,
+        spreadsheet: {
+          ...sheet,
+          rows: (sheet.rows || []).map((row) =>
+            row.id === rowId
+              ? {
+                  ...row,
+                  cells: {
+                    ...(row.cells || {}),
+                    [columnId]: value,
+                  },
+                }
+              : row
+          ),
+        },
+      };
+    });
+  };
+
+  const updateSpreadsheetColumnTitle = (columnId, title) => {
+    if (!user) return;
+
+    updateData((prev) => {
+      const sheet = prev.spreadsheet || starter.spreadsheet;
+      return {
+        ...prev,
+        spreadsheet: {
+          ...sheet,
+          columns: (sheet.columns || []).map((column) =>
+            column.id === columnId ? { ...column, title } : column
+          ),
+        },
+      };
+    });
+  };
+
+  const deleteSpreadsheetRow = (rowId) => {
+    if (!user) {
+      handleLogin();
+      return;
+    }
+
+    updateData((prev) => {
+      const sheet = prev.spreadsheet || starter.spreadsheet;
+      return {
+        ...prev,
+        spreadsheet: {
+          ...sheet,
+          rows: (sheet.rows || []).filter((row) => row.id !== rowId),
+        },
+      };
+    });
+  };
+
+  const deleteSpreadsheetColumn = (columnId) => {
+    if (!user) {
+      handleLogin();
+      return;
+    }
+
+    updateData((prev) => {
+      const sheet = prev.spreadsheet || starter.spreadsheet;
+      return {
+        ...prev,
+        spreadsheet: {
+          ...sheet,
+          columns: (sheet.columns || []).filter((column) => column.id !== columnId),
+          rows: (sheet.rows || []).map((row) => {
+            const nextCells = { ...(row.cells || {}) };
+            delete nextCells[columnId];
+            return { ...row, cells: nextCells };
+          }),
+        },
+      };
+    });
   };
 
   const finalRows = boardCategories.map((category) => {
@@ -886,13 +1055,11 @@ function App() {
             </div>
             <div className="mt-5 space-y-3">
               {data.people.map((person) => {
-                const balance = personBalances.find((p) => p.id === person.id);
                 return (
                   <div key={person.id} className={dark ? "flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3" : "flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"}>
                     <div>
                       <p className="font-black">{person.name}</p>
                       <p className={person.going ? "text-xs font-bold text-emerald-600" : "text-xs font-bold text-slate-400"}>{person.going ? "Going" : "Not confirmed"}</p>
-                      {balance && <p className="text-xs font-bold text-slate-400">Owes {currency(balance.owes)} · Gets back {currency(balance.getsBack)}</p>}
                     </div>
                     <div className="flex items-center gap-2">
                       <button onClick={() => togglePerson(person.id)} className={person.going ? "rounded-xl bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-700" : "rounded-xl bg-slate-200 px-3 py-2 text-xs font-black text-slate-600"}>{person.going ? "Confirmed" : "Confirm"}</button>
@@ -975,215 +1142,143 @@ function App() {
           <section className={panelClass}>
             <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div className="flex items-center gap-3">
-                <Wallet className="text-emerald-500" />
+                <Wallet className="text-indigo-500" />
                 <div>
-                  <h2 className="text-3xl font-black">Budget Tracker</h2>
+                  <h2 className="text-3xl font-black">Trip Spreadsheet</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-400">
-                    Add equal split expenses or custom manual splits.
+                    Flexible shared table for costs, notes, links, plans, and anything your group wants to track.
                   </p>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={addSpreadsheetColumn}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-indigo-200"
+                >
+                  <Plus size={17} /> Add Column
+                </button>
+                <button
+                  onClick={addSpreadsheetRow}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                >
+                  <Plus size={17} /> Add Row
+                </button>
               </div>
             </div>
 
-            <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
-              <div className="grid gap-4 md:grid-cols-4">
-                <input
-                  value={expenseDraft.title}
-                  onChange={(e) => setExpenseDraft({ ...expenseDraft, title: e.target.value })}
-                  placeholder="Expense name"
-                  className={inputClass}
-                />
-
-                <select
-                  value={expenseDraft.paidBy}
-                  onChange={(e) => setExpenseDraft({ ...expenseDraft, paidBy: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="">Paid by</option>
-                  {data.people.map((person) => (
-                    <option key={person.id} value={person.name}>{person.name}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={expenseDraft.splitMode}
-                  onChange={(e) => setExpenseDraft({ ...expenseDraft, splitMode: e.target.value })}
-                  className={inputClass}
-                >
-                  <option value="equal">Equal Split</option>
-                  <option value="manual">Manual Split</option>
-                </select>
-
-                <input
-                  type="number"
-                  value={expenseDraft.amount}
-                  onChange={(e) => setExpenseDraft({ ...expenseDraft, amount: e.target.value })}
-                  placeholder={expenseDraft.splitMode === "manual" ? "Auto from manual" : "Total amount"}
-                  disabled={expenseDraft.splitMode === "manual"}
-                  className={`${inputClass} disabled:opacity-50`}
-                />
+            {!user && (
+              <div className="mb-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black text-amber-700">
+                You can view the spreadsheet without signing in. Sign in with Google to edit, add rows, add columns, or delete anything.
               </div>
+            )}
 
-              <input
-                value={expenseDraft.notes}
-                onChange={(e) => setExpenseDraft({ ...expenseDraft, notes: e.target.value })}
-                placeholder="Notes"
-                className={`${inputClass} mt-4 w-full`}
-              />
+            <div className={dark ? "rounded-[2rem] border border-white/10 bg-white/5 p-4" : "rounded-[2rem] border border-slate-200 bg-slate-50 p-4"}>
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-0">
+                  <thead>
+                    <tr>
+                      {(spreadsheet.columns || []).map((column, columnIndex) => (
+                        <th key={column.id} className={dark ? "sticky top-0 min-w-[180px] border-b border-white/10 bg-slate-900 p-2 text-left" : "sticky top-0 min-w-[180px] border-b border-slate-200 bg-white p-2 text-left"}>
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={column.title}
+                              disabled={!user}
+                              onChange={(e) => updateSpreadsheetColumnTitle(column.id, e.target.value)}
+                              className={dark ? "w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black text-white outline-none disabled:opacity-80" : "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 outline-none disabled:bg-slate-100"}
+                            />
+                            {user && (spreadsheet.columns || []).length > 1 && (
+                              <button
+                                onClick={() => deleteSpreadsheetColumn(column.id)}
+                                className="rounded-xl bg-red-50 p-2 text-red-500"
+                                title="Delete column"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </th>
+                      ))}
+                      <th className={dark ? "sticky top-0 min-w-[80px] border-b border-white/10 bg-slate-900 p-2 text-left" : "sticky top-0 min-w-[80px] border-b border-slate-200 bg-white p-2 text-left"}>
+                        <span className="text-xs font-black text-slate-400">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
 
-              <div className="mt-5">
-                <p className="mb-3 text-sm font-black text-slate-600">Who was included?</p>
-                <div className="flex flex-wrap gap-2">
-                  {data.people.map((person) => {
-                    const selected = expenseDraft.includedPeople.includes(person.name);
-                    return (
-                      <button
-                        key={person.id}
-                        onClick={() => toggleExpensePerson(person.name)}
-                        className={
-                          selected
-                            ? "rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"
-                            : "rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-600"
-                        }
-                      >
-                        {person.name}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-xs font-bold text-slate-400">
-                  If nobody is selected, the expense applies to all confirmed people.
-                </p>
-              </div>
+                  <tbody>
+                    {(spreadsheet.rows || []).map((row, rowIndex) => (
+                      <tr key={row.id}>
+                        {(spreadsheet.columns || []).map((column) => {
+                          const cellValue = row.cells?.[column.id] || "";
+                          const isLinkColumn = column.title.toLowerCase().includes("link");
+                          const href = cellValue?.startsWith("http") ? cellValue : cellValue ? `https://${cellValue}` : "";
 
-              {expenseDraft.splitMode === "manual" && (
-                <div className="mt-5 rounded-3xl bg-white p-4">
-                  <p className="mb-3 text-sm font-black text-slate-600">Manual amounts</p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {(expenseDraft.includedPeople.length
-                      ? expenseDraft.includedPeople
-                      : data.people.filter((person) => person.going).map((person) => person.name)
-                    ).map((name) => (
-                      <div key={name} className="grid grid-cols-[1fr_140px] items-center gap-3">
-                        <p className="text-sm font-black text-slate-700">{name}</p>
-                        <input
-                          type="number"
-                          value={expenseDraft.manualSplits?.[name] || ""}
-                          onChange={(e) => updateManualSplit(name, e.target.value)}
-                          placeholder="$0"
-                          className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 outline-none"
-                        />
-                      </div>
+                          return (
+                            <td key={`${row.id}-${column.id}`} className={dark ? "border-b border-white/10 p-2 align-top" : "border-b border-slate-200 p-2 align-top"}>
+                              <textarea
+                                value={cellValue}
+                                disabled={!user}
+                                onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
+                                placeholder={rowIndex === 0 ? column.title : ""}
+                                className={dark ? "min-h-[52px] w-full resize-y rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-sm font-bold text-white outline-none placeholder:text-slate-500 disabled:opacity-80" : "min-h-[52px] w-full resize-y rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300 disabled:bg-slate-100"}
+                              />
+                              {isLinkColumn && href && (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-2 inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700"
+                                >
+                                  Open Link <ExternalLink size={12} />
+                                </a>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className={dark ? "border-b border-white/10 p-2 align-top" : "border-b border-slate-200 p-2 align-top"}>
+                          {user ? (
+                            <button
+                              onClick={() => deleteSpreadsheetRow(row.id)}
+                              className="rounded-2xl bg-red-50 p-3 text-red-500"
+                              title="Delete row"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          ) : (
+                            <span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-400">View</span>
+                          )}
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                  <p className="mt-3 text-sm font-black text-emerald-700">
-                    Manual total: {currency(Object.values(expenseDraft.manualSplits || {}).reduce((sum, value) => sum + num(value), 0))}
-                  </p>
+                  </tbody>
+                </table>
+              </div>
+
+              {(spreadsheet.rows || []).length === 0 && (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                  <p className="text-lg font-black text-slate-800">No spreadsheet rows yet.</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-400">Click Add Row to start tracking your trip details.</p>
                 </div>
               )}
-
-              <button
-                onClick={addExpense}
-                className="mt-5 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white"
-              >
-                Add Expense
-              </button>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl bg-emerald-50 p-5">
-                <p className="text-xs font-black uppercase text-emerald-700">Total Paid</p>
-                <p className="mt-2 text-3xl font-black text-emerald-700">{currency(totalPaid)}</p>
-              </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
               <div className="rounded-3xl bg-indigo-50 p-5">
-                <p className="text-xs font-black uppercase text-indigo-700">Open Payments</p>
-                <p className="mt-2 text-3xl font-black text-indigo-700">{owedTransactions.length}</p>
+                <p className="text-xs font-black uppercase text-indigo-700">Rows</p>
+                <p className="mt-2 text-3xl font-black text-indigo-700">{(spreadsheet.rows || []).length}</p>
+              </div>
+              <div className="rounded-3xl bg-emerald-50 p-5">
+                <p className="text-xs font-black uppercase text-emerald-700">Columns</p>
+                <p className="mt-2 text-3xl font-black text-emerald-700">{(spreadsheet.columns || []).length}</p>
               </div>
               <div className="rounded-3xl bg-slate-950 p-5 text-white">
-                <p className="text-xs font-black uppercase text-slate-300">Paid Off</p>
-                <p className="mt-2 text-3xl font-black">{(data.settlements || []).length}</p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4">
-              <h3 className="text-2xl font-black">Expenses</h3>
-              {data.expenses.map((expense) => (
-                <div key={expense.id} className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-5" : "rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-black">{expense.title}</p>
-                      <p className="text-sm font-semibold text-slate-400">
-                        Paid by {expense.paidBy || "Unknown"} · {expense.splitMode === "manual" ? "Manual split" : "Equal split"}
-                      </p>
-                      <p className="mt-1 text-xs font-bold text-slate-400">
-                        Included: {(expense.includedPeople?.length ? expense.includedPeople : data.people.filter((person) => person.going).map((person) => person.name)).join(", ")}
-                      </p>
-                      {expense.notes && <p className="mt-2 text-sm font-semibold text-slate-500">{expense.notes}</p>}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className="font-black text-emerald-600">{currency(expense.amount)}</p>
-                      <button onClick={() => removeExpense(expense.id)} className="rounded-xl bg-red-50 p-2 text-red-500"><Trash2 size={16} /></button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8">
-              <h3 className="mb-4 text-2xl font-black">Owed Money Tracker</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                {owedTransactions.length === 0 && (
-                  <div className="rounded-3xl bg-emerald-50 p-5 text-sm font-black text-emerald-700">
-                    No one owes anyone right now.
-                  </div>
-                )}
-                {owedTransactions.map((tx, index) => {
-                  const paymentKey = getPaymentKey(tx);
-                  const isProcessing = processingPaymentKey === paymentKey;
-
-                  return (
-                    <div key={`${tx.from}-${tx.to}-${index}`} className={dark ? "rounded-3xl border border-white/10 bg-white/5 p-5" : "rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
-                      <p className="text-lg font-black">{tx.from} owes {tx.to}</p>
-                      <p className="mt-2 text-3xl font-black text-red-500">{currency(tx.amount)}</p>
-                      <button
-                        onClick={() => markTransactionPaid(tx)}
-                        disabled={isProcessing}
-                        className="mt-4 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isProcessing ? "Marking Paid..." : "Mark as Paid"}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <h3 className="mb-4 text-2xl font-black">Payment History</h3>
-              <div className="grid gap-4">
-                {(data.settlements || []).length === 0 && (
-                  <div className="rounded-3xl bg-slate-50 p-5 text-sm font-black text-slate-500">
-                    No paid-off payments yet.
-                  </div>
-                )}
-                {(data.settlements || []).map((settlement) => (
-                  <div key={settlement.id} className={dark ? "flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 p-5" : "flex items-center justify-between rounded-3xl border border-slate-200 bg-slate-50 p-5"}>
-                    <div>
-                      <p className="font-black">{settlement.from} paid {settlement.to}</p>
-                      <p className="text-sm font-semibold text-slate-400">Marked by {settlement.markedBy}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className="font-black text-emerald-600">{currency(settlement.amount)}</p>
-                      <button onClick={() => undoSettlement(settlement.id)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">
-                        Undo
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                <p className="text-xs font-black uppercase text-slate-300">Editing</p>
+                <p className="mt-2 text-lg font-black">{user ? "Signed in" : "View only"}</p>
               </div>
             </div>
           </section>
         )}
+
       </main>
 
       <button
