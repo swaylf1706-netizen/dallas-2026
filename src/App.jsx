@@ -240,6 +240,7 @@ function App() {
   const [isSpreadsheetEditing, setIsSpreadsheetEditing] = useState(false);
   const [spreadsheetDraft, setSpreadsheetDraft] = useState(null);
   const [expandedSpreadsheetCards, setExpandedSpreadsheetCards] = useState({});
+  const [spreadsheetViewMode, setSpreadsheetViewMode] = useState("compact");
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
 
@@ -1281,7 +1282,7 @@ function App() {
                     Flexible live table for payments, links, plans, statuses, notes, and anything your group needs.
                   </p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[430px]">
+                <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[290px]">
                   <div className="rounded-3xl bg-white/85 p-4 shadow-sm backdrop-blur">
                     <p className="text-xs font-black uppercase text-slate-400">Rows</p>
                     <p className="mt-1 text-3xl font-black text-slate-950">{spreadsheetRows.length}</p>
@@ -1289,10 +1290,6 @@ function App() {
                   <div className="rounded-3xl bg-white/85 p-4 shadow-sm backdrop-blur">
                     <p className="text-xs font-black uppercase text-slate-400">Columns</p>
                     <p className="mt-1 text-3xl font-black text-slate-950">{spreadsheetColumns.length}</p>
-                  </div>
-                  <div className="rounded-3xl bg-emerald-50/90 p-4 shadow-sm backdrop-blur">
-                    <p className="text-xs font-black uppercase text-emerald-700">Money Total</p>
-                    <p className="mt-1 text-2xl font-black text-emerald-700">{currency(spreadsheetMoneyTotal)}</p>
                   </div>
                 </div>
               </div>
@@ -1470,15 +1467,32 @@ function App() {
                     <h3 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">Payment Dashboard</h3>
                     <p className="mt-1 text-sm font-bold text-slate-500">Compact premium cards. Tap details for the full row without taking over the page.</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700 shadow-sm">Confirmed: {spreadsheetConfirmedCount}</span>
                     <span className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700 shadow-sm">Waiting: {spreadsheetWaitingCount}</span>
                     <span className="rounded-2xl bg-indigo-50 px-4 py-3 text-xs font-black text-indigo-700 shadow-sm">Paid Notes: {spreadsheetPaidCount}</span>
                     <span className="rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black text-white shadow-sm">✓ Saved</span>
+                    <div className="flex rounded-2xl bg-white p-1 shadow-sm">
+                      {[
+                        ["comfort", "Comfort"],
+                        ["compact", "Compact"],
+                        ["ultra", "Ultra"],
+                      ].map(([mode, label]) => (
+                        <button
+                          key={mode}
+                          onClick={() => setSpreadsheetViewMode(mode)}
+                          className={spreadsheetViewMode === mode ? "rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white" : "rounded-xl px-3 py-2 text-[11px] font-black text-slate-500 hover:bg-slate-100"}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={() => setExpandedSpreadsheetCards(Object.fromEntries(spreadsheetRows.map((row) => [row.id, true])))} className="rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm">Expand All</button>
+                    <button onClick={() => setExpandedSpreadsheetCards({})} className="rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm">Collapse All</button>
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                <div className={spreadsheetViewMode === "comfort" ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" : spreadsheetViewMode === "compact" ? "grid gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5" : "grid gap-2"}>
                   {spreadsheetRows.map((row, index) => {
                     const personColumn = spreadsheetColumns.find((column) => column.id === "person") || spreadsheetColumns[0];
                     const statusColumn = spreadsheetColumns.find((column) => column.id === "status" || column.type === "status");
@@ -1502,38 +1516,44 @@ function App() {
                     const detailColumns = spreadsheetColumns.filter((column) => column.id !== personColumn.id);
 
                     return (
-                      <div key={row.id} className="mobile-card-motion relative overflow-hidden rounded-[1.65rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] p-4 shadow-[0_18px_45px_rgba(79,70,229,0.12)] ring-1 ring-white hover:shadow-[0_24px_60px_rgba(79,70,229,0.18)]">
+                      <div key={row.id} className={spreadsheetViewMode === "ultra" ? "mobile-card-motion relative overflow-hidden rounded-2xl border border-indigo-100 bg-white/90 p-3 shadow-[0_10px_28px_rgba(79,70,229,0.10)] ring-1 ring-white hover:shadow-[0_16px_40px_rgba(79,70,229,0.16)]" : spreadsheetViewMode === "compact" ? "mobile-card-motion relative overflow-hidden rounded-[1.35rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_52%,#eef2ff_100%)] p-3 shadow-[0_14px_36px_rgba(79,70,229,0.11)] ring-1 ring-white hover:shadow-[0_18px_48px_rgba(79,70,229,0.16)]" : "mobile-card-motion relative overflow-hidden rounded-[1.65rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] p-4 shadow-[0_18px_45px_rgba(79,70,229,0.12)] ring-1 ring-white hover:shadow-[0_24px_60px_rgba(79,70,229,0.18)]"}>
                         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
                         <div className="absolute -right-10 -top-10 h-24 w-24 rounded-full bg-indigo-200/50 blur-2xl" />
                         <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-emerald-200/50 blur-2xl" />
 
                         <div className="relative flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white shadow-lg shadow-slate-300">
+                            <div className={spreadsheetViewMode === "ultra" ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white shadow-lg shadow-slate-300" : "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white shadow-lg shadow-slate-300"}>
                               {initials || index + 1}
                             </div>
                             <div className="min-w-0">
                               <p className="text-[9px] font-black uppercase tracking-[0.18em] text-indigo-500">Dallas 2026</p>
-                              <h3 className="truncate text-xl font-black tracking-tight text-slate-950">{personName}</h3>
+                              <h3 className={spreadsheetViewMode === "ultra" ? "truncate text-base font-black tracking-tight text-slate-950" : "truncate text-xl font-black tracking-tight text-slate-950"}>{personName}</h3>
                             </div>
                           </div>
                           <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black shadow-sm ${getStatusPillClass(status)}`}>{status}</span>
                         </div>
 
-                        <div className="relative mt-4 grid grid-cols-2 gap-2">
-                          <div className="rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur">
+                        <div className={spreadsheetViewMode === "ultra" ? "relative mt-2 grid grid-cols-3 gap-2" : "relative mt-4 grid grid-cols-2 gap-2"}>
+                          <div className={spreadsheetViewMode === "ultra" ? "rounded-xl bg-white/85 p-2 shadow-sm backdrop-blur" : "rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur"}>
                             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Current</p>
-                            <p className="mt-1 truncate text-lg font-black text-emerald-600">{currentAmount}</p>
+                            <p className={spreadsheetViewMode === "ultra" ? "mt-1 truncate text-sm font-black text-emerald-600" : "mt-1 truncate text-lg font-black text-emerald-600"}>{currentAmount}</p>
                           </div>
-                          <div className="rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur">
+                          <div className={spreadsheetViewMode === "ultra" ? "rounded-xl bg-white/85 p-2 shadow-sm backdrop-blur" : "rounded-2xl bg-white/85 p-3 shadow-sm backdrop-blur"}>
                             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">8 People</p>
-                            <p className="mt-1 truncate text-lg font-black text-slate-950">{finalAmount}</p>
+                            <p className={spreadsheetViewMode === "ultra" ? "mt-1 truncate text-sm font-black text-slate-950" : "mt-1 truncate text-lg font-black text-slate-950"}>{finalAmount}</p>
                           </div>
+                          {spreadsheetViewMode === "ultra" && (
+                            <div className="rounded-xl bg-emerald-50/90 p-2 shadow-sm backdrop-blur">
+                              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">Refund</p>
+                              <p className="mt-1 truncate text-sm font-black text-emerald-700">{refundAmount}</p>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="relative mt-3 flex items-center justify-between gap-2">
+                        <div className={spreadsheetViewMode === "ultra" ? "relative mt-2 flex items-center justify-between gap-2" : "relative mt-3 flex items-center justify-between gap-2"}>
                           <span className={`truncate rounded-full px-3 py-1.5 text-[10px] font-black shadow-sm ${getPaidPillClass(paid)}`}>{paid}</span>
-                          <span className="truncate rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black text-emerald-700 shadow-sm">Refund: {refundAmount}</span>
+                          {spreadsheetViewMode !== "ultra" && <span className="truncate rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black text-emerald-700 shadow-sm">Refund: {refundAmount}</span>}
                         </div>
 
                         {isExpanded && (
@@ -1566,7 +1586,7 @@ function App() {
 
                         <button
                           onClick={() => setExpandedSpreadsheetCards((prev) => ({ ...prev, [row.id]: !prev[row.id] }))}
-                          className="relative mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-slate-200 hover:bg-indigo-700"
+                          className={spreadsheetViewMode === "ultra" ? "relative mt-2 w-full rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white shadow-lg shadow-slate-200 hover:bg-indigo-700" : "relative mt-3 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-slate-200 hover:bg-indigo-700"}
                         >
                           {isExpanded ? "Hide Details" : "View Details"}
                         </button>
