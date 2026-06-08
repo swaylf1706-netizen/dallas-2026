@@ -1364,27 +1364,6 @@ function App() {
                     </div>
                   )}
                 </div>
-                        <button onClick={() => setThemePickerOpen(false)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">Close</button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {themeChoices.map(([themeId, themeLabel, swatch, description, emoji]) => (
-                          <button
-                            key={themeId}
-                            onClick={() => { setThemePreset(themeId); setThemePickerOpen(false); }}
-                            className={themePreset === themeId ? "rounded-2xl border-2 border-indigo-500 bg-indigo-50 p-2 text-left shadow-lg" : dark ? "rounded-2xl border border-white/10 bg-white/5 p-2 text-left hover:bg-white/10" : "rounded-2xl border border-slate-200 bg-slate-50 p-2 text-left hover:bg-white"}
-                          >
-                            <div className={`relative mb-2 h-16 overflow-hidden rounded-xl shadow-inner ring-1 ring-white/30 ${swatch}`}>
-                              <span className="absolute right-2 top-2 text-lg drop-shadow">{emoji}</span>
-                              <div className="absolute inset-0 bg-gradient-to-tr from-white/25 via-transparent to-black/20" />
-                            </div>
-                            <p className="text-xs font-black leading-tight">{themeLabel}</p>
-                            <p className="mt-1 line-clamp-2 text-[10px] font-bold text-slate-400">{description}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
 
