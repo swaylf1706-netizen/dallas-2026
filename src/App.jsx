@@ -47,14 +47,14 @@ const uid = () => crypto.randomUUID();
 
 const defaultSpreadsheet = {
   columns: [
-    { id: "person", title: "Person", type: "text" },
-    { id: "status", title: "Status", type: "text" },
-    { id: "owed6", title: "Amount Owed at 6 People", type: "text" },
-    { id: "owed7", title: "Amount Owed at 7 People", type: "text" },
-    { id: "refund7", title: "Refund if 7 People", type: "text" },
-    { id: "owed8", title: "Amount Owed at 8 People", type: "text" },
-    { id: "refund8", title: "Refund if 8 People", type: "text" },
-    { id: "paid", title: "Paid?", type: "text" },
+    { id: "person", title: "Person", type: "person" },
+    { id: "status", title: "Status", type: "status" },
+    { id: "owed6", title: "Amount Owed at 6 People", type: "moneyText" },
+    { id: "owed7", title: "Amount Owed at 7 People", type: "moneyText" },
+    { id: "refund7", title: "Refund if 7 People", type: "moneyText" },
+    { id: "owed8", title: "Amount Owed at 8 People", type: "moneyText" },
+    { id: "refund8", title: "Refund if 8 People", type: "moneyText" },
+    { id: "paid", title: "Paid?", type: "paid" },
     { id: "notes", title: "Notes", type: "text" },
   ],
   rows: [
@@ -110,7 +110,8 @@ const spreadsheetTemplates = {
   },
 };
 
-const statusOptions = ["Idea", "Planning", "Booked", "Done", "Rejected", "Confirmed", "Waiting", "Paid", "No", "Yes"];
+const statusOptions = ["Confirmed", "Waiting", "Maybe", "Not Going", "Planning", "Booked", "Done", "Rejected", "Idea"];
+const paidOptions = ["No", "Yes", "Partial", "Paid car rental", "Paid Airbnb", "Paid full", "Waiting"];
 
 const starter = {
   people: [],
@@ -236,6 +237,8 @@ function App() {
   ]);
   const [isNotesEditing, setIsNotesEditing] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
+  const [isSpreadsheetEditing, setIsSpreadsheetEditing] = useState(false);
+  const [spreadsheetDraft, setSpreadsheetDraft] = useState(null);
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
 
@@ -824,13 +827,14 @@ function App() {
     });
   });
 
-  const spreadsheet = data.spreadsheet || defaultSpreadsheet;
+  const savedSpreadsheet = data.spreadsheet || defaultSpreadsheet;
+  const spreadsheet = isSpreadsheetEditing && spreadsheetDraft ? spreadsheetDraft : savedSpreadsheet;
   const spreadsheetColumns = spreadsheet.columns?.length ? spreadsheet.columns : defaultSpreadsheet.columns;
   const spreadsheetRows = spreadsheet.rows || [];
   const spreadsheetMoneyTotal = spreadsheetRows.reduce((sum, row) => {
     return sum + spreadsheetColumns.reduce((colSum, column) => {
-      if (column.type !== "money") return colSum;
-      return colSum + num(row.cells?.[column.id]);
+      if (!["money", "moneyText"].includes(column.type)) return colSum;
+      return colSum + num(String(row.cells?.[column.id] || "").replace(/[^0-9.-]/g, ""));
     }, 0);
   }, 0);
 
@@ -842,6 +846,19 @@ function App() {
 
   const updateSpreadsheet = (updater) => {
     if (!requireEditUser()) return;
+
+    if (isSpreadsheetEditing) {
+      setSpreadsheetDraft((prevDraft) => {
+        const currentSheet = prevDraft || savedSpreadsheet || defaultSpreadsheet;
+        return {
+          ...currentSheet,
+          ...updater(currentSheet),
+          updatedAt: Date.now(),
+        };
+      });
+      return;
+    }
+
     updateData((prev) => {
       const currentSheet = prev.spreadsheet || defaultSpreadsheet;
       return {
@@ -855,13 +872,44 @@ function App() {
     });
   };
 
+  const startEditingSpreadsheet = () => {
+    if (!requireEditUser()) return;
+    setSpreadsheetDraft(JSON.parse(JSON.stringify(savedSpreadsheet || defaultSpreadsheet)));
+    setIsSpreadsheetEditing(true);
+  };
+
+  const saveSpreadsheetChanges = () => {
+    if (!requireEditUser()) return;
+    if (!spreadsheetDraft) {
+      setIsSpreadsheetEditing(false);
+      return;
+    }
+    updateData((prev) => ({
+      ...prev,
+      spreadsheet: {
+        ...spreadsheetDraft,
+        updatedAt: Date.now(),
+      },
+    }));
+    setIsSpreadsheetEditing(false);
+    setSpreadsheetDraft(null);
+  };
+
+  const cancelSpreadsheetChanges = () => {
+    setSpreadsheetDraft(null);
+    setIsSpreadsheetEditing(false);
+  };
+
   const addSpreadsheetRow = () => {
     updateSpreadsheet((sheet) => ({
       rows: [
         ...(sheet.rows || []),
         {
           id: uid(),
-          cells: Object.fromEntries((sheet.columns || defaultSpreadsheet.columns).map((column) => [column.id, column.type === "status" ? "Idea" : ""])),
+          cells: Object.fromEntries((sheet.columns || defaultSpreadsheet.columns).map((column) => [
+              column.id,
+              column.type === "status" ? "Waiting" : column.type === "paid" ? "No" : "",
+            ])),
         },
       ],
     }));
@@ -877,14 +925,14 @@ function App() {
     const title = window.prompt("Column title?", "New Column");
     if (!title?.trim()) return;
     const type = window.prompt("Column type? text, money, link, status, date", "text") || "text";
-    const safeType = ["text", "money", "link", "status", "date"].includes(type.toLowerCase()) ? type.toLowerCase() : "text";
+    const safeType = ["text", "money", "moneyText", "link", "status", "paid", "person", "date"].includes(type.toLowerCase()) ? type.toLowerCase() : "text";
     const columnId = `col_${uid().slice(0, 8)}`;
 
     updateSpreadsheet((sheet) => ({
       columns: [...(sheet.columns || []), { id: columnId, title: title.trim(), type: safeType }],
       rows: (sheet.rows || []).map((row) => ({
         ...row,
-        cells: { ...(row.cells || {}), [columnId]: safeType === "status" ? "Idea" : "" },
+        cells: { ...(row.cells || {}), [columnId]: safeType === "status" ? "Waiting" : safeType === "paid" ? "No" : "" },
       })),
     }));
   };
@@ -921,7 +969,7 @@ function App() {
       handleLogin();
       return;
     }
-    setNotesDraft(spreadsheet.notes || "");
+    setNotesDraft(savedSpreadsheet.notes || "");
     setIsNotesEditing(true);
   };
 
@@ -935,7 +983,7 @@ function App() {
   };
 
   const cancelSpreadsheetNotes = () => {
-    setNotesDraft(spreadsheet.notes || "");
+    setNotesDraft(savedSpreadsheet.notes || "");
     setIsNotesEditing(false);
   };
 
@@ -968,6 +1016,20 @@ function App() {
     a.download = "dallas-2026-spreadsheet.csv";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const getStatusPillClass = (status) => {
+    if (["Confirmed", "Booked", "Done"].includes(status)) return "bg-emerald-100 text-emerald-700";
+    if (["Waiting", "Planning", "Maybe", "Idea"].includes(status)) return "bg-amber-100 text-amber-700";
+    if (["Rejected", "Not Going"].includes(status)) return "bg-red-100 text-red-700";
+    return "bg-slate-100 text-slate-600";
+  };
+
+  const getPaidPillClass = (paid) => {
+    if (["Yes", "Paid full", "Paid car rental", "Paid Airbnb"].includes(paid)) return "bg-emerald-100 text-emerald-700";
+    if (["Partial"].includes(paid)) return "bg-amber-100 text-amber-700";
+    if (["No", "Waiting"].includes(paid)) return "bg-red-100 text-red-700";
+    return "bg-slate-100 text-slate-600";
   };
 
   const pageClass = dark
@@ -1224,26 +1286,40 @@ function App() {
               </div>
 
               <div className="relative mt-6 flex flex-wrap items-center gap-3">
-                <button onClick={addSpreadsheetRow} className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-xl shadow-slate-300">
+                {!isSpreadsheetEditing ? (
+                  <button onClick={startEditingSpreadsheet} className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-xl shadow-slate-300">
+                    <Pencil size={17} /> Edit Spreadsheet
+                  </button>
+                ) : (
+                  <>
+                    <button onClick={saveSpreadsheetChanges} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-emerald-200">
+                      <Save size={17} /> Save Spreadsheet
+                    </button>
+                    <button onClick={cancelSpreadsheetChanges} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm">
+                      Cancel
+                    </button>
+                  </>
+                )}
+                <button disabled={!isSpreadsheetEditing} onClick={addSpreadsheetRow} className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-xl shadow-slate-300 disabled:cursor-not-allowed disabled:opacity-40">
                   <Plus size={17} /> Add Row
                 </button>
-                <button onClick={addSpreadsheetColumn} className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-indigo-200">
+                <button disabled={!isSpreadsheetEditing} onClick={addSpreadsheetColumn} className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-indigo-200 disabled:cursor-not-allowed disabled:opacity-40">
                   <Plus size={17} /> Add Column
                 </button>
                 <button onClick={exportSpreadsheetCsv} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm">
                   Export CSV
                 </button>
-                <select onChange={(e) => e.target.value && applySpreadsheetTemplate(e.target.value)} defaultValue="" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 outline-none">
+                <select disabled={!isSpreadsheetEditing} onChange={(e) => e.target.value && applySpreadsheetTemplate(e.target.value)} defaultValue="" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 outline-none">
                   <option value="">Use Template</option>
                   {Object.entries(spreadsheetTemplates).map(([key, template]) => (
                     <option key={key} value={key}>{template.name}</option>
                   ))}
                 </select>
-                <button onClick={() => applySpreadsheetTemplate("payment")} className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-emerald-200">
+                <button disabled={!isSpreadsheetEditing} onClick={() => applySpreadsheetTemplate("payment")} className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-emerald-200 disabled:cursor-not-allowed disabled:opacity-40">
                   Reset to Dallas Payment Split
                 </button>
                 {!user && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700">Sign in to edit the spreadsheet.</p>}
-                <p className="ml-auto rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700">✓ Live saved</p>
+                <p className="ml-auto rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700">{isSpreadsheetEditing ? "Editing draft" : "✓ Saved & locked"}</p>
               </div>
             </div>
 
@@ -1259,11 +1335,12 @@ function App() {
                             <input
                               value={column.title}
                               onChange={(e) => renameSpreadsheetColumn(column.id, e.target.value)}
+                              disabled={!isSpreadsheetEditing}
                               className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black text-white outline-none placeholder:text-slate-400"
                             />
                             <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black uppercase text-slate-300">{column.type}</span>
                             {spreadsheetColumns.length > 1 && (
-                              <button onClick={() => deleteSpreadsheetColumn(column.id)} className="rounded-xl bg-red-500/20 p-2 text-red-200 hover:bg-red-500/30">
+                              <button disabled={!isSpreadsheetEditing} onClick={() => deleteSpreadsheetColumn(column.id)} className="rounded-xl bg-red-500/20 p-2 text-red-200 hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-40">
                                 <Trash2 size={13} />
                               </button>
                             )}
@@ -1279,21 +1356,50 @@ function App() {
                         <td className="border-t border-slate-100 px-3 py-3 text-sm font-black text-slate-400">{rowIndex + 1}</td>
                         {spreadsheetColumns.map((column) => {
                           const value = row.cells?.[column.id] || "";
+                          const isLocked = !isSpreadsheetEditing;
+                          const personChoices = Array.from(new Set([...(data.people || []).map((person) => person.name), value].filter(Boolean)));
+                          const paidChoices = Array.from(new Set([...paidOptions, value].filter(Boolean)));
+                          const statusChoices = Array.from(new Set([...statusOptions, value].filter(Boolean)));
+                          const displayValue = value || "—";
+
                           return (
                             <td key={column.id} className="border-l border-t border-slate-100 px-3 py-3 align-top">
-                              {column.type === "status" ? (
+                              {isLocked ? (
+                                column.type === "link" && value ? (
+                                  <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noreferrer" className="inline-flex min-w-[120px] items-center justify-center rounded-2xl bg-indigo-600 px-3 py-2 text-xs font-black text-white">
+                                    Open Link
+                                  </a>
+                                ) : column.type === "status" || column.id === "status" ? (
+                                  <span className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${getStatusPillClass(value || "Waiting")}`}>{displayValue}</span>
+                                ) : column.type === "paid" || column.id === "paid" ? (
+                                  <span className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${getPaidPillClass(value || "No")}`}>{displayValue}</span>
+                                ) : (
+                                  <div className="min-w-[170px] rounded-2xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700">{displayValue}</div>
+                                )
+                              ) : column.type === "status" || column.id === "status" ? (
                                 <select
-                                  value={value || "Idea"}
+                                  value={value || "Waiting"}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
-                                  className={`rounded-2xl px-3 py-2 text-xs font-black outline-none ${
-                                    (value || "Idea") === "Booked" ? "bg-emerald-100 text-emerald-700" :
-                                    (value || "Idea") === "Done" ? "bg-indigo-100 text-indigo-700" :
-                                    (value || "Idea") === "Rejected" ? "bg-red-100 text-red-700" :
-                                    (value || "Idea") === "Planning" ? "bg-amber-100 text-amber-700" :
-                                    "bg-slate-100 text-slate-600"
-                                  }`}
+                                  className={`rounded-2xl px-3 py-2 text-xs font-black outline-none ${getStatusPillClass(value || "Waiting")}`}
                                 >
-                                  {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                                  {statusChoices.map((status) => <option key={status} value={status}>{status}</option>)}
+                                </select>
+                              ) : column.type === "paid" || column.id === "paid" ? (
+                                <select
+                                  value={value || "No"}
+                                  onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
+                                  className={`rounded-2xl px-3 py-2 text-xs font-black outline-none ${getPaidPillClass(value || "No")}`}
+                                >
+                                  {paidChoices.map((paid) => <option key={paid} value={paid}>{paid}</option>)}
+                                </select>
+                              ) : column.type === "person" || column.id === "person" ? (
+                                <select
+                                  value={value}
+                                  onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
+                                  className="w-full min-w-[170px] rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100"
+                                >
+                                  <option value="">Select person</option>
+                                  {personChoices.map((name) => <option key={name} value={name}>{name}</option>)}
                                 </select>
                               ) : column.type === "link" ? (
                                 <div className="flex min-w-[220px] items-center gap-2">
@@ -1314,7 +1420,7 @@ function App() {
                                   type={column.type === "money" ? "number" : column.type === "date" ? "date" : "text"}
                                   value={value}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
-                                  placeholder={column.type === "money" ? "$0" : "Type here"}
+                                  placeholder={column.type === "money" || column.type === "moneyText" ? "$0" : "Type here"}
                                   className="w-full min-w-[170px] rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100"
                                 />
                               )}
@@ -1322,7 +1428,7 @@ function App() {
                           );
                         })}
                         <td className="border-l border-t border-slate-100 px-3 py-3">
-                          <button onClick={() => deleteSpreadsheetRow(row.id)} className="rounded-xl bg-red-50 p-2 text-red-500 hover:bg-red-100">
+                          <button disabled={!isSpreadsheetEditing} onClick={() => deleteSpreadsheetRow(row.id)} className="rounded-xl bg-red-50 p-2 text-red-500 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40">
                             <Trash2 size={16} />
                           </button>
                         </td>
@@ -1333,7 +1439,7 @@ function App() {
                         <td colSpan={spreadsheetColumns.length + 2} className="px-6 py-12 text-center">
                           <p className="text-xl font-black text-slate-950">No rows yet.</p>
                           <p className="mt-1 text-sm font-bold text-slate-400">Add your first spreadsheet row to start planning.</p>
-                          <button onClick={addSpreadsheetRow} className="mt-5 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">Add Row</button>
+                          <button disabled={!isSpreadsheetEditing} onClick={addSpreadsheetRow} className="mt-5 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">Add Row</button>
                         </td>
                       </tr>
                     )}
@@ -1369,10 +1475,18 @@ function App() {
                     </div>
                     {money && <p className="mt-4 text-3xl font-black text-emerald-600">{currency(money)}</p>}
                     <div className="mt-4 space-y-2">
-                      {spreadsheetColumns.slice(1, 5).map((column) => (
+                      {spreadsheetColumns.filter((column) => column.id !== titleColumn.id).map((column) => (
                         <div key={column.id} className="flex justify-between gap-3 rounded-2xl bg-white/75 px-3 py-2 text-xs font-bold text-slate-500">
-                          <span>{column.title}</span>
-                          <span className="max-w-[160px] truncate text-slate-900">{row.cells?.[column.id] || "—"}</span>
+                          <span className="shrink-0">{column.title}</span>
+                          {column.type === "link" && row.cells?.[column.id] ? (
+                            <a href={row.cells[column.id].startsWith("http") ? row.cells[column.id] : `https://${row.cells[column.id]}`} target="_blank" rel="noreferrer" className="font-black text-indigo-600">Open Link</a>
+                          ) : column.type === "status" || column.id === "status" ? (
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-black ${getStatusPillClass(row.cells?.[column.id] || "Waiting")}`}>{row.cells?.[column.id] || "—"}</span>
+                          ) : column.type === "paid" || column.id === "paid" ? (
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-black ${getPaidPillClass(row.cells?.[column.id] || "No")}`}>{row.cells?.[column.id] || "—"}</span>
+                          ) : (
+                            <span className="text-right text-slate-900 break-words">{row.cells?.[column.id] || "—"}</span>
+                          )}
                         </div>
                       ))}
                     </div>
