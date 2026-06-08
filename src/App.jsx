@@ -246,7 +246,7 @@ function App() {
   const [spreadsheetDraft, setSpreadsheetDraft] = useState(null);
   const [expandedSpreadsheetCards, setExpandedSpreadsheetCards] = useState({});
   const [spreadsheetViewMode, setSpreadsheetViewMode] = useState("compact");
-  const [themePreset, setThemePreset] = useState(() => localStorage.getItem("dallasTheme") || "royal");
+  const [themePreset, setThemePreset] = useState(() => localStorage.getItem("dallasTheme") || "midnight");
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [themePickerOpen, setThemePickerOpen] = useState(false);
@@ -1126,67 +1126,42 @@ function App() {
   };
 
   const themeStyles = {
-    royal: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#eef2ff_0,#f8fafc_35%,#ffffff_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#312e81_0,#020617_46%,#000_100%)] text-white",
+    sakura: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_18%_12%,#ffe4f1_0,#fff7ed_42%,#fff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_18%_12%,#fb7185_0,#881337_34%,#020617_100%)] text-white",
     },
-    midnight: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe_0,#f8fafc_38%,#eef2ff_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#1e293b_0,#020617_55%,#000_100%)] text-white",
-    },
-    gold: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#fef3c7_0,#fffbeb_42%,#ffffff_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#f59e0b_0,#78350f_38%,#020617_100%)] text-white",
+    cyber: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_10%_10%,#cffafe_0,#fae8ff_38%,#f8fafc_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_12%_14%,#22d3ee_0,#6d28d9_32%,#020617_68%,#000_100%)] text-white",
     },
     aurora: {
       light: "min-h-screen bg-[radial-gradient(circle_at_10%_20%,#bbf7d0_0,#dbeafe_36%,#fae8ff_72%,#fff_100%)] text-slate-950",
       dark: "min-h-screen bg-[radial-gradient(circle_at_12%_18%,#22c55e_0,#2563eb_28%,#581c87_58%,#020617_100%)] text-white",
     },
-    forest: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#dcfce7_0,#ecfdf5_36%,#ffffff_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#22c55e_0,#064e3b_35%,#020617_100%)] text-white",
+    frost: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_15%_15%,#e0f2fe_0,#f8fafc_42%,#ffffff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_15%_15%,#67e8f9_0,#1e3a8a_32%,#020617_100%)] text-white",
     },
     sunset: {
       light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#ffedd5_0,#fff1f2_38%,#ffffff_100%)] text-slate-950",
       dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#fb923c_0,#be123c_36%,#020617_100%)] text-white",
     },
-    rose: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#ffe4e6_0,#fdf2f8_36%,#ffffff_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#fb7185_0,#831843_35%,#020617_100%)] text-white",
-    },
-    cyber: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#cffafe_0,#ecfeff_30%,#f8fafc_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#22d3ee_0,#155e75_24%,#020617_62%,#000_100%)] text-white",
-    },
-    ocean: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#bae6fd_0,#ccfbf1_36%,#ffffff_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#38bdf8_0,#164e63_34%,#020617_100%)] text-white",
-    },
-    frost: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_15%_15%,#e0f2fe_0,#f8fafc_42%,#ffffff_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_15%_15%,#67e8f9_0,#1e3a8a_32%,#020617_100%)] text-white",
-    },
-    sakura: {
-      light: "min-h-screen bg-[radial-gradient(circle_at_20%_10%,#fbcfe8_0,#fce7f3_36%,#fff7ed_75%,#ffffff_100%)] text-slate-950",
-      dark: "min-h-screen bg-[radial-gradient(circle_at_20%_10%,#fb7185_0,#9f1239_35%,#020617_100%)] text-white",
+    midnight: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe_0,#f8fafc_38%,#eef2ff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#1e293b_0,#020617_55%,#000_100%)] text-white",
     },
   };
 
   const themeChoices = [
-    ["royal", "Default Royal", "bg-gradient-to-br from-indigo-500 to-violet-700", "Clean premium Dallas look", "👑"],
-    ["midnight", "Midnight", "bg-gradient-to-br from-blue-950 to-slate-950", "Deep night, calm and sharp", "🌙"],
-    ["gold", "Gold Luxe", "bg-gradient-to-br from-amber-300 to-yellow-700", "Luxury black and gold shimmer", "🏆"],
-    ["aurora", "Aurora", "bg-gradient-to-br from-emerald-400 via-sky-500 to-purple-600", "Moving northern-light glow", "🌌"],
-    ["forest", "Forest Mist", "bg-gradient-to-br from-emerald-300 via-green-500 to-lime-900", "Soft green mist and nature glow", "🌲"],
-    ["sunset", "Sunset Glow", "bg-gradient-to-br from-orange-400 via-rose-500 to-purple-700", "Warm cinematic sunset", "🌅"],
-    ["rose", "Rose Gold", "bg-gradient-to-br from-pink-300 via-rose-400 to-amber-300", "Soft luxury rose shine", "🌹"],
-    ["cyber", "Cyberpunk", "bg-gradient-to-br from-cyan-400 via-fuchsia-500 to-blue-950", "Neon grid and futuristic glow", "🧬"],
-    ["ocean", "Ocean Deep", "bg-gradient-to-br from-sky-400 via-teal-500 to-blue-950", "Deep water glow and wave motion", "🌊"],
-    ["frost", "Frost", "bg-gradient-to-br from-cyan-100 via-sky-200 to-white", "Icy glass and snow shine", "❄️"],
-    ["sakura", "Sakura", "bg-gradient-to-br from-pink-200 via-rose-300 to-orange-200", "Japanese cherry blossoms falling", "🌸"],
+    ["sakura", "Sakura", "bg-gradient-to-br from-pink-200 via-rose-300 to-orange-100", "Cherry tree, falling petals, soft glass", "🌸"],
+    ["cyber", "Cyberpunk", "bg-gradient-to-br from-cyan-400 via-fuchsia-500 to-blue-950", "Neon city, HUD glow, digital rain", "⚡"],
+    ["aurora", "Aurora", "bg-gradient-to-br from-emerald-400 via-sky-500 to-purple-600", "Northern lights, stars, magical waves", "🌌"],
+    ["frost", "Frost", "bg-gradient-to-br from-cyan-100 via-sky-200 to-white", "Snow, ice glass, crystal glow", "❄️"],
+    ["sunset", "Sunset", "bg-gradient-to-br from-orange-400 via-rose-500 to-purple-700", "Golden hour, cinematic warmth", "🌅"],
+    ["midnight", "Midnight", "bg-gradient-to-br from-blue-950 to-slate-950", "Cosmic luxury dark mode", "🌙"],
   ];
 
-  const pageClass = themeStyles[themePreset]?.[dark ? "dark" : "light"] || themeStyles.royal[dark ? "dark" : "light"];
+  const pageClass = themeStyles[themePreset]?.[dark ? "dark" : "light"] || themeStyles.midnight[dark ? "dark" : "light"];
 
   const panelClass = dark
     ? "rounded-[2rem] border border-white/10 bg-white/10 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl"
@@ -1275,53 +1250,51 @@ function App() {
         @keyframes snowDrift { 0% { transform: translateY(-10vh); opacity: 0; } 15% { opacity: .7; } 100% { transform: translateY(110vh); opacity: 0; } }
       `}</style>
 
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-all duration-700">
         {themePreset === "sakura" && (
           <>
-            <div className="absolute left-0 top-0 h-56 w-56 rounded-full bg-pink-300/20 blur-3xl" />
-            <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-rose-300/20 blur-3xl" />
-            {[...Array(18)].map((_, i) => (
-              <span
-                key={i}
-                className="absolute -top-8 text-lg opacity-70"
-                style={{ left: `${(i * 7) % 100}%`, animation: `sakuraFall ${8 + (i % 6)}s linear ${i * 0.45}s infinite`, "--drift": `${i % 2 === 0 ? 80 : -80}px` }}
-              >
-                🌸
-              </span>
+            <div className="absolute -left-20 top-20 h-[38rem] w-[38rem] rounded-full bg-pink-300/20 blur-3xl" />
+            <div className="absolute left-[-4rem] top-[8rem] h-[26rem] w-[22rem] rounded-full border-l-[34px] border-rose-950/25 rotate-[-18deg]" />
+            <div className="absolute left-[3rem] top-[5rem] h-44 w-72 rounded-full bg-pink-300/25 blur-2xl" />
+            <div className="absolute left-[7rem] top-[9rem] h-40 w-80 rounded-full bg-rose-200/25 blur-2xl" />
+            {[...Array(22)].map((_, i) => (
+              <span key={i} className="absolute -top-8 text-lg opacity-80" style={{ left: `${(i * 7) % 100}%`, animation: `sakuraFall ${9 + (i % 6)}s linear ${i * 0.35}s infinite`, "--drift": `${i % 2 === 0 ? 80 : -80}px` }}>🌸</span>
             ))}
+          </>
+        )}
+        {themePreset === "cyber" && (
+          <>
+            <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "linear-gradient(rgba(34,211,238,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(217,70,239,.28) 1px, transparent 1px)", backgroundSize: "48px 48px", animation: "cyberGrid 14s linear infinite" }} />
+            {[...Array(6)].map((_, i) => <div key={i} className="absolute h-[2px] w-48 bg-gradient-to-r from-transparent via-cyan-300 to-transparent blur-[1px]" style={{ top: `${15 + i * 13}%`, animation: `cyberStreak ${5 + i}s linear ${i * .7}s infinite` }} />)}
           </>
         )}
         {themePreset === "aurora" && (
           <>
             <div className="absolute -top-24 left-[-10%] h-72 w-[120%] rotate-[-8deg] rounded-full bg-gradient-to-r from-emerald-400/25 via-cyan-300/20 to-violet-500/25 blur-3xl" style={{ animation: "auroraFlow 8s ease-in-out infinite" }} />
             <div className="absolute top-40 left-[-15%] h-56 w-[130%] rotate-[7deg] rounded-full bg-gradient-to-r from-purple-500/20 via-blue-400/20 to-green-300/20 blur-3xl" style={{ animation: "auroraFlow 11s ease-in-out infinite reverse" }} />
-          </>
-        )}
-        {themePreset === "gold" && (
-          <>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_10%,rgba(251,191,36,.18),transparent_28%),radial-gradient(circle_at_20%_80%,rgba(245,158,11,.16),transparent_30%)]" />
-            <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-amber-200/20 to-transparent blur-xl" style={{ animation: "luxuryShimmer 7s linear infinite" }} />
-          </>
-        )}
-        {themePreset === "cyber" && (
-          <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "linear-gradient(rgba(34,211,238,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(217,70,239,.28) 1px, transparent 1px)", backgroundSize: "48px 48px", animation: "cyberGrid 14s linear infinite" }} />
-        )}
-        {themePreset === "ocean" && (
-          <>
-            <div className="absolute bottom-[-10%] left-[-10%] h-72 w-72 rounded-full bg-cyan-300/25 blur-3xl" style={{ animation: "floatGlow 8s ease-in-out infinite" }} />
-            <div className="absolute bottom-10 right-[-5%] h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" style={{ animation: "floatGlow 10s ease-in-out infinite reverse" }} />
+            {[...Array(20)].map((_, i) => <span key={i} className="absolute text-white/60" style={{ left: `${(i*17)%100}%`, top: `${(i*23)%80}%` }}>✦</span>)}
           </>
         )}
         {themePreset === "frost" && (
           <>
-            {[...Array(14)].map((_, i) => (
-              <span key={i} className="absolute -top-6 text-sm text-cyan-100/80" style={{ left: `${(i * 11) % 100}%`, animation: `snowDrift ${7 + (i % 5)}s linear ${i * 0.6}s infinite` }}>✦</span>
-            ))}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(186,230,253,.28),transparent_24%),radial-gradient(circle_at_84%_70%,rgba(255,255,255,.24),transparent_32%)]" />
+            {[...Array(22)].map((_, i) => <span key={i} className="absolute -top-6 text-sm text-cyan-100/80" style={{ left: `${(i * 11) % 100}%`, animation: `snowDrift ${7 + (i % 5)}s linear ${i * 0.45}s infinite` }}>✦</span>)}
           </>
         )}
-        {themePreset === "forest" && <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(74,222,128,.18),transparent_22%),radial-gradient(circle_at_82%_65%,rgba(34,197,94,.14),transparent_28%)]" />}
-        {themePreset === "sunset" && <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_18%,rgba(251,146,60,.22),transparent_26%),radial-gradient(circle_at_20%_80%,rgba(244,63,94,.18),transparent_28%)]" />}
-        {themePreset === "rose" && <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(251,113,133,.18),transparent_22%),radial-gradient(circle_at_82%_72%,rgba(253,186,116,.16),transparent_28%)]" />}
+        {themePreset === "sunset" && (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,rgba(251,146,60,.30),transparent_26%),radial-gradient(circle_at_20%_78%,rgba(244,63,94,.20),transparent_32%)]" />
+            <div className="absolute right-[-6rem] top-20 h-80 w-80 rounded-full bg-orange-300/25 blur-3xl" style={{ animation: "sunsetPulse 7s ease-in-out infinite" }} />
+            {[...Array(14)].map((_, i) => <span key={i} className="absolute text-amber-200/60" style={{ left: `${(i*13)%100}%`, top: `${15+(i*7)%70}%`, animation: `floatGlow ${8+(i%4)}s ease-in-out ${i*.2}s infinite` }}>✧</span>)}
+          </>
+        )}
+        {themePreset === "midnight" && (
+          <>
+            <div className="absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,.55) 1px, transparent 1px)", backgroundSize: "64px 64px", animation: "midnightStars 18s linear infinite" }} />
+            <div className="absolute left-[-10rem] top-[-8rem] h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl" />
+            <div className="absolute right-[-8rem] bottom-[-8rem] h-96 w-96 rounded-full bg-purple-500/15 blur-3xl" />
+          </>
+        )}
       </div>
 
       <header className={dark ? "sticky top-0 z-50 border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl" : "sticky top-0 z-50 border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl"}>
@@ -1366,22 +1339,31 @@ function App() {
                   {dark ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
 
-                <div className="relative">
+                <div className="relative flex items-center gap-2">
                   <button
                     onClick={() => setThemePickerOpen((prev) => !prev)}
                     className={dark ? "inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black text-white shadow-lg" : "inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-lg shadow-slate-200"}
-                    title="Open theme picker"
+                    title="Theme"
                   >
                     <Palette size={18} />
-                    <Sparkles size={14} className="text-amber-400" />
+                    <span className="hidden sm:inline">Theme</span>
                   </button>
                   {themePickerOpen && (
-                    <div className={dark ? "fixed right-4 top-24 z-[90] max-h-[72vh] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 text-white shadow-2xl backdrop-blur-2xl" : "fixed right-4 top-24 z-[90] max-h-[72vh] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-[2rem] border border-slate-200 bg-white/95 p-4 text-slate-950 shadow-2xl backdrop-blur-2xl"}>
-                      <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-black">Choose Theme</p>
-                          <p className="text-xs font-bold text-slate-400">Make Dallas 2026 feel different.</p>
-                        </div>
+                    <div className="flex max-w-[calc(100vw-7rem)] gap-2 overflow-x-auto rounded-2xl bg-white/70 p-2 shadow-xl ring-1 ring-black/5 backdrop-blur-xl dark:bg-slate-950/70 dark:ring-white/10">
+                      {themeChoices.map(([themeId, themeLabel, swatch, description, emoji]) => (
+                        <button
+                          key={themeId}
+                          onClick={() => setThemePreset(themeId)}
+                          title={`${themeLabel}: ${description}`}
+                          className={themePreset === themeId ? "relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border-2 border-white text-lg shadow-[0_10px_30px_rgba(79,70,229,.35)] ring-2 ring-indigo-500" : "relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/60 text-lg shadow-lg hover:scale-105"}
+                        >
+                          <span className={`absolute inset-0 rounded-2xl ${swatch}`} />
+                          <span className="relative drop-shadow">{emoji}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                         <button onClick={() => setThemePickerOpen(false)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600">Close</button>
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
