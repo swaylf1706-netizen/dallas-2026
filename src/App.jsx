@@ -246,7 +246,7 @@ function App() {
   const [spreadsheetDraft, setSpreadsheetDraft] = useState(null);
   const [expandedSpreadsheetCards, setExpandedSpreadsheetCards] = useState({});
   const [spreadsheetViewMode, setSpreadsheetViewMode] = useState("compact");
-  const [themePreset, setThemePreset] = useState(() => localStorage.getItem("dallasTheme") || "midnight");
+  const [themePreset, setThemePreset] = useState(() => localStorage.getItem("dallasTheme") || "regular");
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [themePickerOpen, setThemePickerOpen] = useState(false);
@@ -1126,6 +1126,10 @@ function App() {
   };
 
   const themeStyles = {
+    regular: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#eef2ff_0,#f8fafc_32%,#f8fafc_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#1e1b4b_0,#020617_42%,#020617_100%)] text-white",
+    },
     sakura: {
       light: "min-h-screen bg-[radial-gradient(circle_at_18%_12%,#ffe4f1_0,#fff7ed_42%,#fff_100%)] text-slate-950",
       dark: "min-h-screen bg-[radial-gradient(circle_at_18%_12%,#fb7185_0,#881337_34%,#020617_100%)] text-white",
@@ -1153,6 +1157,7 @@ function App() {
   };
 
   const themeChoices = [
+    ["regular", "Regular", "bg-gradient-to-br from-indigo-100 via-white to-slate-200", "Clean original Dallas planner look", "✨"],
     ["sakura", "Sakura", "bg-gradient-to-br from-pink-200 via-rose-300 to-orange-100", "Cherry tree, falling petals, soft glass", "🌸"],
     ["cyber", "Cyberpunk", "bg-gradient-to-br from-cyan-400 via-fuchsia-500 to-blue-950", "Neon city, HUD glow, digital rain", "⚡"],
     ["aurora", "Aurora", "bg-gradient-to-br from-emerald-400 via-sky-500 to-purple-600", "Northern lights, stars, magical waves", "🌌"],
@@ -1161,7 +1166,7 @@ function App() {
     ["midnight", "Midnight", "bg-gradient-to-br from-blue-950 to-slate-950", "Cosmic luxury dark mode", "🌙"],
   ];
 
-  const pageClass = themeStyles[themePreset]?.[dark ? "dark" : "light"] || themeStyles.midnight[dark ? "dark" : "light"];
+  const pageClass = themeStyles[themePreset]?.[dark ? "dark" : "light"] || themeStyles.regular[dark ? "dark" : "light"];
 
   const panelClass = dark
     ? "rounded-[2rem] border border-white/10 bg-white/10 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl"
@@ -1248,9 +1253,20 @@ function App() {
         @keyframes cyberGrid { 0% { background-position: 0 0, 0 0; } 100% { background-position: 90px 90px, 90px 90px; } }
         @keyframes floatGlow { 0%,100% { transform: translateY(0) scale(1); opacity: .42; } 50% { transform: translateY(-18px) scale(1.06); opacity: .72; } }
         @keyframes snowDrift { 0% { transform: translateY(-10vh); opacity: 0; } 15% { opacity: .7; } 100% { transform: translateY(110vh); opacity: 0; } }
+        @keyframes cyberStreak { 0% { transform: translateX(-30vw); opacity: 0; } 12% { opacity: .9; } 100% { transform: translateX(120vw); opacity: 0; } }
+        @keyframes sunsetPulse { 0%,100% { transform: scale(1); opacity: .38; } 50% { transform: scale(1.12); opacity: .7; } }
+        @keyframes midnightStars { 0% { background-position: 0 0; } 100% { background-position: 64px 64px; } }
+        @keyframes cloudSlide { 0% { transform: translateX(-12%); } 100% { transform: translateX(12%); } }
       `}</style>
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden transition-all duration-700">
+        {themePreset === "regular" && (
+          <>
+            <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-indigo-300/20 blur-3xl" />
+            <div className="absolute right-[-8rem] bottom-[-8rem] h-96 w-96 rounded-full bg-sky-300/20 blur-3xl" />
+            <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)", backgroundSize: "42px 42px" }} />
+          </>
+        )}
         {themePreset === "sakura" && (
           <>
             <div className="absolute -left-20 top-20 h-[38rem] w-[38rem] rounded-full bg-pink-300/20 blur-3xl" />
@@ -1265,6 +1281,8 @@ function App() {
         {themePreset === "cyber" && (
           <>
             <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "linear-gradient(rgba(34,211,238,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(217,70,239,.28) 1px, transparent 1px)", backgroundSize: "48px 48px", animation: "cyberGrid 14s linear infinite" }} />
+            <div className="absolute bottom-0 left-0 right-0 h-56 bg-gradient-to-t from-black/60 to-transparent" />
+            {[...Array(12)].map((_, i) => <div key={`tower-${i}`} className="absolute bottom-0 rounded-t-lg border border-cyan-300/20 bg-slate-950/60 shadow-[0_0_28px_rgba(34,211,238,.25)]" style={{ left: `${i * 8.5}%`, width: `${4 + (i % 3) * 2}%`, height: `${90 + (i % 5) * 26}px` }}><div className="mt-3 h-1 w-full bg-cyan-300/40" /><div className="mt-4 h-1 w-2/3 bg-fuchsia-300/40" /></div>)}
             {[...Array(6)].map((_, i) => <div key={i} className="absolute h-[2px] w-48 bg-gradient-to-r from-transparent via-cyan-300 to-transparent blur-[1px]" style={{ top: `${15 + i * 13}%`, animation: `cyberStreak ${5 + i}s linear ${i * .7}s infinite` }} />)}
           </>
         )}
@@ -1278,6 +1296,7 @@ function App() {
         {themePreset === "frost" && (
           <>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(186,230,253,.28),transparent_24%),radial-gradient(circle_at_84%_70%,rgba(255,255,255,.24),transparent_32%)]" />
+            <div className="absolute bottom-0 left-[-8%] h-48 w-[120%] bg-gradient-to-t from-white/55 to-transparent" style={{ clipPath: "polygon(0 100%,8% 45%,16% 90%,25% 28%,38% 88%,50% 35%,62% 82%,72% 22%,84% 76%,94% 40%,100% 100%)" }} />
             {[...Array(22)].map((_, i) => <span key={i} className="absolute -top-6 text-sm text-cyan-100/80" style={{ left: `${(i * 11) % 100}%`, animation: `snowDrift ${7 + (i % 5)}s linear ${i * 0.45}s infinite` }}>✦</span>)}
           </>
         )}
@@ -1285,6 +1304,7 @@ function App() {
           <>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,rgba(251,146,60,.30),transparent_26%),radial-gradient(circle_at_20%_78%,rgba(244,63,94,.20),transparent_32%)]" />
             <div className="absolute right-[-6rem] top-20 h-80 w-80 rounded-full bg-orange-300/25 blur-3xl" style={{ animation: "sunsetPulse 7s ease-in-out infinite" }} />
+            <div className="absolute left-[-10%] top-28 h-20 w-[120%] rounded-full bg-white/10 blur-xl" style={{ animation: "cloudSlide 16s ease-in-out infinite alternate" }} />
             {[...Array(14)].map((_, i) => <span key={i} className="absolute text-amber-200/60" style={{ left: `${(i*13)%100}%`, top: `${15+(i*7)%70}%`, animation: `floatGlow ${8+(i%4)}s ease-in-out ${i*.2}s infinite` }}>✧</span>)}
           </>
         )}
