@@ -30,6 +30,9 @@ import {
   Bot,
   X,
   Send,
+  Search,
+  Palette,
+  MousePointer2,
 } from "lucide-react";
 
 const TRIP_START = new Date("2026-07-29T00:00:00");
@@ -241,6 +244,10 @@ function App() {
   const [spreadsheetDraft, setSpreadsheetDraft] = useState(null);
   const [expandedSpreadsheetCards, setExpandedSpreadsheetCards] = useState({});
   const [spreadsheetViewMode, setSpreadsheetViewMode] = useState("compact");
+  const [themePreset, setThemePreset] = useState(() => localStorage.getItem("dallasTheme") || "royal");
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const lastCursorWrite = useRef(0);
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
 
@@ -278,6 +285,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem("dallasDark", String(dark));
   }, [dark]);
+
+  useEffect(() => {
+    localStorage.setItem("dallasTheme", themePreset);
+  }, [themePreset]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -462,6 +473,7 @@ function App() {
       presence: {
         ...(prev.presence || {}),
         [user.uid]: {
+          ...(prev.presence?.[user.uid] || {}),
           uid: user.uid,
           name: user.displayName || user.email,
           photoURL: user.photoURL || "",
@@ -476,6 +488,37 @@ function App() {
     updatePresence();
     const interval = setInterval(updatePresence, 120000);
     return () => clearInterval(interval);
+  }, [user, cloudReady]);
+
+  useEffect(() => {
+    if (!user || !cloudReady) return;
+
+    const handleMouseMove = (event) => {
+      const now = Date.now();
+      if (now - lastCursorWrite.current < 1800) return;
+      lastCursorWrite.current = now;
+
+      updateData((prev) => ({
+        ...prev,
+        presence: {
+          ...(prev.presence || {}),
+          [user.uid]: {
+            ...(prev.presence?.[user.uid] || {}),
+            uid: user.uid,
+            name: user.displayName || user.email,
+            photoURL: user.photoURL || "",
+            lastSeen: now,
+            cursor: {
+              x: Math.round(event.clientX),
+              y: Math.round(event.clientY),
+            },
+          },
+        },
+      }));
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [user, cloudReady]);
 
   const addPerson = () => {
@@ -873,14 +916,14 @@ function App() {
       linkInput: "min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold outline-none focus:ring-4 focus:ring-indigo-100",
     },
     tiny: {
-      head: "min-w-[105px] border-l border-white/10 px-1.5 py-1.5 text-left align-top",
-      rowNumber: "border-t border-slate-100 px-2 py-1.5 text-[11px] font-black text-slate-400",
-      cell: "border-l border-t border-slate-100 px-1.5 py-1.5 align-top",
-      input: "w-full min-w-[95px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100",
-      display: "min-w-[95px] rounded-lg bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-700",
-      select: "w-full min-w-[95px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100",
-      linkWrap: "flex min-w-[125px] items-center gap-1",
-      linkInput: "min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-indigo-100",
+      head: "min-w-[72px] border-l border-white/10 px-1 py-1 text-left align-top text-[10px]",
+      rowNumber: "border-t border-slate-100 px-1 py-1 text-[9px] font-black text-slate-400",
+      cell: "border-l border-t border-slate-100 px-1 py-1 align-top",
+      input: "w-full min-w-[66px] rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
+      display: "min-w-[66px] rounded-md bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-700",
+      select: "w-full min-w-[66px] rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-black text-slate-700 outline-none focus:bg-white focus:ring-1 focus:ring-indigo-100",
+      linkWrap: "flex min-w-[88px] items-center gap-1",
+      linkInput: "min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold outline-none focus:ring-1 focus:ring-indigo-100",
     },
   }[spreadsheetViewMode] || {};
 
@@ -1078,9 +1121,33 @@ function App() {
     return "bg-slate-100 text-slate-600";
   };
 
-  const pageClass = dark
-    ? "min-h-screen bg-[radial-gradient(circle_at_top_left,#1e1b4b_0,#020617_42%,#020617_100%)] text-white"
-    : "min-h-screen bg-[radial-gradient(circle_at_top_left,#eef2ff_0,#f8fafc_32%,#f8fafc_100%)] text-slate-950";
+  const themeStyles = {
+    royal: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#eef2ff_0,#f8fafc_32%,#f8fafc_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#1e1b4b_0,#020617_42%,#020617_100%)] text-white",
+    },
+    emerald: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#ecfdf5_0,#f8fafc_36%,#f0fdfa_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#064e3b_0,#022c22_42%,#020617_100%)] text-white",
+    },
+    sunset: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#fff7ed_0,#fff1f2_38%,#f8fafc_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#7c2d12_0,#431407_42%,#020617_100%)] text-white",
+    },
+    midnight: {
+      light: "min-h-screen bg-[radial-gradient(circle_at_top_left,#e0f2fe_0,#f8fafc_35%,#eef2ff_100%)] text-slate-950",
+      dark: "min-h-screen bg-[radial-gradient(circle_at_top_left,#0f172a_0,#020617_55%,#000_100%)] text-white",
+    },
+  };
+
+  const themeChoices = [
+    ["royal", "Royal"],
+    ["emerald", "Emerald"],
+    ["sunset", "Sunset"],
+    ["midnight", "Midnight"],
+  ];
+
+  const pageClass = themeStyles[themePreset]?.[dark ? "dark" : "light"] || themeStyles.royal[dark ? "dark" : "light"];
 
   const panelClass = dark
     ? "rounded-[2rem] border border-white/10 bg-white/10 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl"
@@ -1091,6 +1158,48 @@ function App() {
     : "rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100";
 
   const showSidebar = active !== "budget";
+
+  const commandItems = [
+    ...tabs.map((tab) => ({
+      id: `tab-${tab.id}`,
+      label: `Open ${tab.label}`,
+      helper: "Navigation",
+      action: () => setActive(tab.id),
+    })),
+    { id: "toggle-dark", label: dark ? "Switch to Light Mode" : "Switch to Dark Mode", helper: "Theme", action: () => setDark((prev) => !prev) },
+    { id: "theme-royal", label: "Use Royal Theme", helper: "Theme", action: () => setThemePreset("royal") },
+    { id: "theme-emerald", label: "Use Emerald Theme", helper: "Theme", action: () => setThemePreset("emerald") },
+    { id: "theme-sunset", label: "Use Sunset Theme", helper: "Theme", action: () => setThemePreset("sunset") },
+    { id: "theme-midnight", label: "Use Midnight Theme", helper: "Theme", action: () => setThemePreset("midnight") },
+    { id: "spreadsheet-edit", label: "Edit Spreadsheet", helper: "Spreadsheet", action: () => { setActive("budget"); startEditingSpreadsheet(); } },
+    { id: "spreadsheet-tiny", label: "Tiny Spreadsheet Zoom", helper: "Spreadsheet", action: () => { setActive("budget"); setSpreadsheetViewMode("tiny"); } },
+    { id: "assistant", label: "Open Dallas Assistant", helper: "AI", action: () => setAssistantOpen(true) },
+  ];
+
+  const filteredCommandItems = commandItems.filter((item) => {
+    const search = commandQuery.toLowerCase().trim();
+    if (!search) return true;
+    return `${item.label} ${item.helper}`.toLowerCase().includes(search);
+  });
+
+  const runCommand = (item) => {
+    item.action();
+    setCommandOpen(false);
+    setCommandQuery("");
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((prev) => !prev);
+      }
+      if (event.key === "Escape") setCommandOpen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   if (authLoading) {
     return (
@@ -1115,6 +1224,8 @@ function App() {
         .mobile-card-motion { transition: transform 240ms ease, box-shadow 240ms ease, background-color 240ms ease; }
         .mobile-card-motion:active { transform: scale(0.99); }
         @media (hover: hover) { .mobile-card-motion:hover { transform: translateY(-4px); } }
+        @keyframes pageFadeSlide { from { opacity: 0; transform: translateY(10px) scale(0.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .page-transition { animation: pageFadeSlide 260ms ease both; }
       `}</style>
       <header className={dark ? "sticky top-0 z-50 border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl" : "sticky top-0 z-50 border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl"}>
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:px-8">
@@ -1157,6 +1268,23 @@ function App() {
                 <button onClick={() => setDark((prev) => !prev)} className={dark ? "rounded-2xl bg-white/10 p-3 text-white" : "rounded-2xl bg-slate-950 p-3 text-white"}>
                   {dark ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
+
+                <button onClick={() => setCommandOpen(true)} className={dark ? "inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black text-white" : "inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm"}>
+                  <Search size={16} /> Ctrl K
+                </button>
+
+                <div className="flex items-center gap-1 rounded-2xl bg-white/80 p-1 shadow-sm">
+                  {themeChoices.map(([themeId, themeLabel]) => (
+                    <button
+                      key={themeId}
+                      onClick={() => setThemePreset(themeId)}
+                      title={`${themeLabel} theme`}
+                      className={themePreset === themeId ? "rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white" : "rounded-xl px-3 py-2 text-[11px] font-black text-slate-500 hover:bg-slate-100"}
+                    >
+                      {themeLabel}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -1206,7 +1334,7 @@ function App() {
         </div>
       </header>
 
-      <main className={showSidebar ? "mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mx-auto max-w-7xl px-4 py-8 lg:px-8"}>
+      <main key={active} className={`${showSidebar ? "mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mx-auto max-w-7xl px-4 py-8 lg:px-8"} page-transition`}>
         {showSidebar && (
           <aside className={panelClass}>
             <h2 className="text-2xl font-black">Who’s Going?</h2>
@@ -1702,6 +1830,57 @@ function App() {
       >
         <Bot size={20} /> Dallas AI
       </button>
+
+      {onlineUsers
+        .filter((person) => person.uid !== user?.uid && person.cursor)
+        .map((person) => (
+          <div
+            key={`cursor-${person.uid}`}
+            className="pointer-events-none fixed z-[90] hidden md:block"
+            style={{ left: `${person.cursor.x}px`, top: `${person.cursor.y}px` }}
+          >
+            <MousePointer2 className="h-5 w-5 text-indigo-600 drop-shadow" />
+            <span className="ml-3 rounded-full bg-slate-950 px-3 py-1 text-[10px] font-black text-white shadow-xl">
+              {person.name || "Online user"}
+            </span>
+          </div>
+        ))}
+
+      {commandOpen && (
+        <div className="fixed inset-0 z-[95] bg-slate-950/50 px-4 pt-20 backdrop-blur-sm" onClick={() => setCommandOpen(false)}>
+          <div className={dark ? "mx-auto max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 text-white shadow-2xl" : "mx-auto max-w-2xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white text-slate-950 shadow-2xl"} onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center gap-3 border-b border-slate-200/20 px-5 py-4">
+              <Search size={19} className="text-indigo-500" />
+              <input
+                autoFocus
+                value={commandQuery}
+                onChange={(event) => setCommandQuery(event.target.value)}
+                placeholder="Search pages, themes, spreadsheet actions..."
+                className={dark ? "min-w-0 flex-1 bg-transparent text-sm font-bold text-white outline-none placeholder:text-slate-500" : "min-w-0 flex-1 bg-transparent text-sm font-bold text-slate-950 outline-none placeholder:text-slate-400"}
+              />
+              <span className="rounded-xl bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">ESC</span>
+            </div>
+            <div className="max-h-[420px] overflow-y-auto p-3">
+              {filteredCommandItems.slice(0, 12).map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => runCommand(item)}
+                  className={dark ? "flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left hover:bg-white/10" : "flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left hover:bg-indigo-50"}
+                >
+                  <span>
+                    <span className="block text-sm font-black">{item.label}</span>
+                    <span className="text-xs font-bold text-slate-400">{item.helper}</span>
+                  </span>
+                  <span className="text-xs font-black text-indigo-500">Enter</span>
+                </button>
+              ))}
+              {filteredCommandItems.length === 0 && (
+                <p className="px-4 py-8 text-center text-sm font-bold text-slate-400">No commands found.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {assistantOpen && (
         <div className="fixed inset-0 z-[70] bg-slate-950/40 backdrop-blur-sm md:flex md:items-end md:justify-end md:p-6">
