@@ -44,6 +44,75 @@ const currency = (value) =>
 const num = (value) => Number(value) || 0;
 const uid = () => crypto.randomUUID();
 
+
+const defaultSpreadsheet = {
+  columns: [
+    { id: "item", title: "Item", type: "text" },
+    { id: "price", title: "Price", type: "money" },
+    { id: "link", title: "Link", type: "link" },
+    { id: "status", title: "Status", type: "status" },
+    { id: "notes", title: "Notes", type: "text" },
+  ],
+  rows: [
+    {
+      id: uid(),
+      cells: {
+        item: "Airbnb",
+        price: "2315",
+        link: "",
+        status: "Booked",
+        notes: "Main stay option",
+      },
+    },
+    {
+      id: uid(),
+      cells: {
+        item: "Car Rental",
+        price: "1147",
+        link: "",
+        status: "Planning",
+        notes: "Nathan paid originally",
+      },
+    },
+  ],
+  updatedAt: Date.now(),
+};
+
+const spreadsheetTemplates = {
+  trip: {
+    name: "Trip Planning",
+    columns: [
+      { id: "item", title: "Item", type: "text" },
+      { id: "price", title: "Price", type: "money" },
+      { id: "link", title: "Link", type: "link" },
+      { id: "status", title: "Status", type: "status" },
+      { id: "notes", title: "Notes", type: "text" },
+    ],
+  },
+  food: {
+    name: "Food Tracker",
+    columns: [
+      { id: "restaurant", title: "Restaurant", type: "text" },
+      { id: "area", title: "Area", type: "text" },
+      { id: "price", title: "Price", type: "money" },
+      { id: "rating", title: "Rating", type: "text" },
+      { id: "notes", title: "Notes", type: "text" },
+    ],
+  },
+  activities: {
+    name: "Activity Tracker",
+    columns: [
+      { id: "activity", title: "Activity", type: "text" },
+      { id: "cost", title: "Cost", type: "money" },
+      { id: "date", title: "Date", type: "date" },
+      { id: "status", title: "Status", type: "status" },
+      { id: "link", title: "Link", type: "link" },
+    ],
+  },
+};
+
+const statusOptions = ["Idea", "Planning", "Booked", "Done", "Rejected"];
+
 const starter = {
   people: [],
   flights: [],
@@ -62,39 +131,9 @@ const starter = {
   },
   expenses: [],
   settlements: [],
-  spreadsheet: {
-    columns: [
-      { id: "item", title: "Item" },
-      { id: "paidBy", title: "Paid By" },
-      { id: "amount", title: "Amount" },
-      { id: "notes", title: "Notes" },
-      { id: "link", title: "Link" },
-    ],
-    rows: [
-      {
-        id: "starter-row-1",
-        cells: {
-          item: "Airbnb",
-          paidBy: "Nathan",
-          amount: "2315",
-          notes: "Paid already",
-          link: "",
-        },
-      },
-      {
-        id: "starter-row-2",
-        cells: {
-          item: "Car Rental",
-          paidBy: "Nathan",
-          amount: "1147",
-          notes: "Split later",
-          link: "",
-        },
-      },
-    ],
-  },
   presence: {},
   notifications: [],
+  spreadsheet: defaultSpreadsheet,
 };
 
 const tabs = [
@@ -116,7 +155,7 @@ const labels = {
   food: "Food",
   shopping: "Shopping",
   final: "Final Picks",
-  budget: "Spreadsheet",
+  budget: "Trip Spreadsheet",
 };
 
 const boardCategories = ["flights", "stay", "cars", "activities", "food", "shopping"];
@@ -212,10 +251,6 @@ function App() {
     food: (cloudData.food || []).map(normalizeOption),
     shopping: (cloudData.shopping || []).map(normalizeOption),
     finalPicks: { ...starter.finalPicks, ...(cloudData.finalPicks || {}) },
-    spreadsheet: {
-      columns: cloudData.spreadsheet?.columns?.length ? cloudData.spreadsheet.columns : starter.spreadsheet.columns,
-      rows: cloudData.spreadsheet?.rows || starter.spreadsheet.rows,
-    },
     expenses: (cloudData.expenses || []).map((expense) => ({
       splitMode: expense.splitMode || "equal",
       includedPeople: expense.includedPeople || [],
@@ -225,6 +260,12 @@ function App() {
     settlements: cloudData.settlements || [],
     presence: cloudData.presence || {},
     notifications: cloudData.notifications || [],
+    spreadsheet: {
+      ...defaultSpreadsheet,
+      ...(cloudData.spreadsheet || {}),
+      columns: cloudData.spreadsheet?.columns?.length ? cloudData.spreadsheet.columns : defaultSpreadsheet.columns,
+      rows: cloudData.spreadsheet?.rows || defaultSpreadsheet.rows,
+    },
   });
 
   useEffect(() => {
@@ -367,8 +408,6 @@ function App() {
             shopping: data.shopping,
             finalPicks: data.finalPicks,
             spreadsheet: data.spreadsheet,
-            expenses: data.expenses,
-            settlements: data.settlements,
           },
         }),
       });
@@ -582,139 +621,6 @@ function App() {
     }));
   };
 
-  const spreadsheet = data.spreadsheet || starter.spreadsheet;
-
-  const addSpreadsheetRow = () => {
-    if (!user) {
-      handleLogin();
-      return;
-    }
-
-    updateData((prev) => ({
-      ...prev,
-      spreadsheet: {
-        ...(prev.spreadsheet || starter.spreadsheet),
-        rows: [
-          ...((prev.spreadsheet || starter.spreadsheet).rows || []),
-          {
-            id: uid(),
-            cells: {},
-          },
-        ],
-      },
-    }));
-  };
-
-  const addSpreadsheetColumn = () => {
-    if (!user) {
-      handleLogin();
-      return;
-    }
-
-    const newColumnId = `col_${Date.now()}`;
-
-    updateData((prev) => {
-      const sheet = prev.spreadsheet || starter.spreadsheet;
-      return {
-        ...prev,
-        spreadsheet: {
-          ...sheet,
-          columns: [...(sheet.columns || []), { id: newColumnId, title: "New Column" }],
-          rows: (sheet.rows || []).map((row) => ({
-            ...row,
-            cells: {
-              ...(row.cells || {}),
-              [newColumnId]: "",
-            },
-          })),
-        },
-      };
-    });
-  };
-
-  const updateSpreadsheetCell = (rowId, columnId, value) => {
-    if (!user) return;
-
-    updateData((prev) => {
-      const sheet = prev.spreadsheet || starter.spreadsheet;
-      return {
-        ...prev,
-        spreadsheet: {
-          ...sheet,
-          rows: (sheet.rows || []).map((row) =>
-            row.id === rowId
-              ? {
-                  ...row,
-                  cells: {
-                    ...(row.cells || {}),
-                    [columnId]: value,
-                  },
-                }
-              : row
-          ),
-        },
-      };
-    });
-  };
-
-  const updateSpreadsheetColumnTitle = (columnId, title) => {
-    if (!user) return;
-
-    updateData((prev) => {
-      const sheet = prev.spreadsheet || starter.spreadsheet;
-      return {
-        ...prev,
-        spreadsheet: {
-          ...sheet,
-          columns: (sheet.columns || []).map((column) =>
-            column.id === columnId ? { ...column, title } : column
-          ),
-        },
-      };
-    });
-  };
-
-  const deleteSpreadsheetRow = (rowId) => {
-    if (!user) {
-      handleLogin();
-      return;
-    }
-
-    updateData((prev) => {
-      const sheet = prev.spreadsheet || starter.spreadsheet;
-      return {
-        ...prev,
-        spreadsheet: {
-          ...sheet,
-          rows: (sheet.rows || []).filter((row) => row.id !== rowId),
-        },
-      };
-    });
-  };
-
-  const deleteSpreadsheetColumn = (columnId) => {
-    if (!user) {
-      handleLogin();
-      return;
-    }
-
-    updateData((prev) => {
-      const sheet = prev.spreadsheet || starter.spreadsheet;
-      return {
-        ...prev,
-        spreadsheet: {
-          ...sheet,
-          columns: (sheet.columns || []).filter((column) => column.id !== columnId),
-          rows: (sheet.rows || []).map((row) => {
-            const nextCells = { ...(row.cells || {}) };
-            delete nextCells[columnId];
-            return { ...row, cells: nextCells };
-          }),
-        },
-      };
-    });
-  };
-
   const finalRows = boardCategories.map((category) => {
     const selected = (data[category] || []).find((item) => item.id === data.finalPicks?.[category]);
     return {
@@ -915,6 +821,128 @@ function App() {
       creditor.remaining -= amount;
     });
   });
+
+  const spreadsheet = data.spreadsheet || defaultSpreadsheet;
+  const spreadsheetColumns = spreadsheet.columns?.length ? spreadsheet.columns : defaultSpreadsheet.columns;
+  const spreadsheetRows = spreadsheet.rows || [];
+  const spreadsheetMoneyTotal = spreadsheetRows.reduce((sum, row) => {
+    return sum + spreadsheetColumns.reduce((colSum, column) => {
+      if (column.type !== "money") return colSum;
+      return colSum + num(row.cells?.[column.id]);
+    }, 0);
+  }, 0);
+
+  const requireEditUser = () => {
+    if (user) return true;
+    handleLogin();
+    return false;
+  };
+
+  const updateSpreadsheet = (updater) => {
+    if (!requireEditUser()) return;
+    updateData((prev) => {
+      const currentSheet = prev.spreadsheet || defaultSpreadsheet;
+      return {
+        ...prev,
+        spreadsheet: {
+          ...currentSheet,
+          ...updater(currentSheet),
+          updatedAt: Date.now(),
+        },
+      };
+    });
+  };
+
+  const addSpreadsheetRow = () => {
+    updateSpreadsheet((sheet) => ({
+      rows: [
+        ...(sheet.rows || []),
+        {
+          id: uid(),
+          cells: Object.fromEntries((sheet.columns || defaultSpreadsheet.columns).map((column) => [column.id, column.type === "status" ? "Idea" : ""])),
+        },
+      ],
+    }));
+  };
+
+  const deleteSpreadsheetRow = (rowId) => {
+    updateSpreadsheet((sheet) => ({
+      rows: (sheet.rows || []).filter((row) => row.id !== rowId),
+    }));
+  };
+
+  const addSpreadsheetColumn = () => {
+    const title = window.prompt("Column title?", "New Column");
+    if (!title?.trim()) return;
+    const type = window.prompt("Column type? text, money, link, status, date", "text") || "text";
+    const safeType = ["text", "money", "link", "status", "date"].includes(type.toLowerCase()) ? type.toLowerCase() : "text";
+    const columnId = `col_${uid().slice(0, 8)}`;
+
+    updateSpreadsheet((sheet) => ({
+      columns: [...(sheet.columns || []), { id: columnId, title: title.trim(), type: safeType }],
+      rows: (sheet.rows || []).map((row) => ({
+        ...row,
+        cells: { ...(row.cells || {}), [columnId]: safeType === "status" ? "Idea" : "" },
+      })),
+    }));
+  };
+
+  const renameSpreadsheetColumn = (columnId, title) => {
+    updateSpreadsheet((sheet) => ({
+      columns: (sheet.columns || []).map((column) => (column.id === columnId ? { ...column, title } : column)),
+    }));
+  };
+
+  const deleteSpreadsheetColumn = (columnId) => {
+    updateSpreadsheet((sheet) => ({
+      columns: (sheet.columns || []).filter((column) => column.id !== columnId),
+      rows: (sheet.rows || []).map((row) => {
+        const nextCells = { ...(row.cells || {}) };
+        delete nextCells[columnId];
+        return { ...row, cells: nextCells };
+      }),
+    }));
+  };
+
+  const updateSpreadsheetCell = (rowId, columnId, value) => {
+    updateSpreadsheet((sheet) => ({
+      rows: (sheet.rows || []).map((row) =>
+        row.id === rowId
+          ? { ...row, cells: { ...(row.cells || {}), [columnId]: value } }
+          : row
+      ),
+    }));
+  };
+
+  const applySpreadsheetTemplate = (templateKey) => {
+    const template = spreadsheetTemplates[templateKey];
+    if (!template) return;
+    updateSpreadsheet(() => ({
+      columns: template.columns,
+      rows: [
+        {
+          id: uid(),
+          cells: Object.fromEntries(template.columns.map((column) => [column.id, column.type === "status" ? "Idea" : ""])),
+        },
+      ],
+    }));
+  };
+
+  const exportSpreadsheetCsv = () => {
+    const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const csv = [
+      spreadsheetColumns.map((column) => escapeCsv(column.title)).join(","),
+      ...spreadsheetRows.map((row) => spreadsheetColumns.map((column) => escapeCsv(row.cells?.[column.id] || "")).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dallas-2026-spreadsheet.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const pageClass = dark
     ? "min-h-screen bg-[radial-gradient(circle_at_top_left,#1e1b4b_0,#020617_42%,#020617_100%)] text-white"
@@ -1140,141 +1168,193 @@ function App() {
 
         {active === "budget" && (
           <section className={panelClass}>
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div className="flex items-center gap-3">
-                <Wallet className="text-indigo-500" />
+            <div className="relative overflow-hidden rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_48%,#ecfdf5_100%)] p-6 shadow-[0_30px_100px_rgba(79,70,229,0.16)]">
+              <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-indigo-200/60 blur-3xl" />
+              <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-emerald-200/60 blur-3xl" />
+              <div className="relative flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
                 <div>
-                  <h2 className="text-3xl font-black">Trip Spreadsheet</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-400">
-                    Flexible shared table for costs, notes, links, plans, and anything your group wants to track.
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white shadow-lg">
+                    <Wallet size={15} /> Premium Sheet
+                  </div>
+                  <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-950 md:text-5xl">Dallas Trip Spreadsheet</h2>
+                  <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-slate-600">
+                    Flexible live table for payments, links, plans, statuses, notes, and anything your group needs.
                   </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[430px]">
+                  <div className="rounded-3xl bg-white/85 p-4 shadow-sm backdrop-blur">
+                    <p className="text-xs font-black uppercase text-slate-400">Rows</p>
+                    <p className="mt-1 text-3xl font-black text-slate-950">{spreadsheetRows.length}</p>
+                  </div>
+                  <div className="rounded-3xl bg-white/85 p-4 shadow-sm backdrop-blur">
+                    <p className="text-xs font-black uppercase text-slate-400">Columns</p>
+                    <p className="mt-1 text-3xl font-black text-slate-950">{spreadsheetColumns.length}</p>
+                  </div>
+                  <div className="rounded-3xl bg-emerald-50/90 p-4 shadow-sm backdrop-blur">
+                    <p className="text-xs font-black uppercase text-emerald-700">Money Total</p>
+                    <p className="mt-1 text-2xl font-black text-emerald-700">{currency(spreadsheetMoneyTotal)}</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={addSpreadsheetColumn}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-indigo-200"
-                >
-                  <Plus size={17} /> Add Column
-                </button>
-                <button
-                  onClick={addSpreadsheetRow}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white"
-                >
+              <div className="relative mt-6 flex flex-wrap items-center gap-3">
+                <button onClick={addSpreadsheetRow} className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-xl shadow-slate-300">
                   <Plus size={17} /> Add Row
                 </button>
+                <button onClick={addSpreadsheetColumn} className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-indigo-200">
+                  <Plus size={17} /> Add Column
+                </button>
+                <button onClick={exportSpreadsheetCsv} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm">
+                  Export CSV
+                </button>
+                <select onChange={(e) => e.target.value && applySpreadsheetTemplate(e.target.value)} defaultValue="" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 outline-none">
+                  <option value="">Use Template</option>
+                  {Object.entries(spreadsheetTemplates).map(([key, template]) => (
+                    <option key={key} value={key}>{template.name}</option>
+                  ))}
+                </select>
+                {!user && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-black text-amber-700">Sign in to edit the spreadsheet.</p>}
+                <p className="ml-auto rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700">✓ Live saved</p>
               </div>
             </div>
 
-            {!user && (
-              <div className="mb-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black text-amber-700">
-                You can view the spreadsheet without signing in. Sign in with Google to edit, add rows, add columns, or delete anything.
-              </div>
-            )}
-
-            <div className={dark ? "rounded-[2rem] border border-white/10 bg-white/5 p-4" : "rounded-[2rem] border border-slate-200 bg-slate-50 p-4"}>
+            <div className="mt-6 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
               <div className="overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-0">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-slate-950 text-white">
                     <tr>
-                      {(spreadsheet.columns || []).map((column, columnIndex) => (
-                        <th key={column.id} className={dark ? "sticky top-0 min-w-[180px] border-b border-white/10 bg-slate-900 p-2 text-left" : "sticky top-0 min-w-[180px] border-b border-slate-200 bg-white p-2 text-left"}>
+                      <th className="w-14 px-3 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-300">#</th>
+                      {spreadsheetColumns.map((column) => (
+                        <th key={column.id} className="min-w-[180px] border-l border-white/10 px-3 py-3 text-left align-top">
                           <div className="flex items-center gap-2">
                             <input
                               value={column.title}
-                              disabled={!user}
-                              onChange={(e) => updateSpreadsheetColumnTitle(column.id, e.target.value)}
-                              className={dark ? "w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black text-white outline-none disabled:opacity-80" : "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 outline-none disabled:bg-slate-100"}
+                              onChange={(e) => renameSpreadsheetColumn(column.id, e.target.value)}
+                              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black text-white outline-none placeholder:text-slate-400"
                             />
-                            {user && (spreadsheet.columns || []).length > 1 && (
-                              <button
-                                onClick={() => deleteSpreadsheetColumn(column.id)}
-                                className="rounded-xl bg-red-50 p-2 text-red-500"
-                                title="Delete column"
-                              >
-                                <Trash2 size={14} />
+                            <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black uppercase text-slate-300">{column.type}</span>
+                            {spreadsheetColumns.length > 1 && (
+                              <button onClick={() => deleteSpreadsheetColumn(column.id)} className="rounded-xl bg-red-500/20 p-2 text-red-200 hover:bg-red-500/30">
+                                <Trash2 size={13} />
                               </button>
                             )}
                           </div>
                         </th>
                       ))}
-                      <th className={dark ? "sticky top-0 min-w-[80px] border-b border-white/10 bg-slate-900 p-2 text-left" : "sticky top-0 min-w-[80px] border-b border-slate-200 bg-white p-2 text-left"}>
-                        <span className="text-xs font-black text-slate-400">Actions</span>
-                      </th>
+                      <th className="w-20 border-l border-white/10 px-3 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-300">Action</th>
                     </tr>
                   </thead>
-
                   <tbody>
-                    {(spreadsheet.rows || []).map((row, rowIndex) => (
-                      <tr key={row.id}>
-                        {(spreadsheet.columns || []).map((column) => {
-                          const cellValue = row.cells?.[column.id] || "";
-                          const isLinkColumn = column.title.toLowerCase().includes("link");
-                          const href = cellValue?.startsWith("http") ? cellValue : cellValue ? `https://${cellValue}` : "";
-
+                    {spreadsheetRows.map((row, rowIndex) => (
+                      <tr key={row.id} className="group hover:bg-indigo-50/50">
+                        <td className="border-t border-slate-100 px-3 py-3 text-sm font-black text-slate-400">{rowIndex + 1}</td>
+                        {spreadsheetColumns.map((column) => {
+                          const value = row.cells?.[column.id] || "";
                           return (
-                            <td key={`${row.id}-${column.id}`} className={dark ? "border-b border-white/10 p-2 align-top" : "border-b border-slate-200 p-2 align-top"}>
-                              <textarea
-                                value={cellValue}
-                                disabled={!user}
-                                onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
-                                placeholder={rowIndex === 0 ? column.title : ""}
-                                className={dark ? "min-h-[52px] w-full resize-y rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-sm font-bold text-white outline-none placeholder:text-slate-500 disabled:opacity-80" : "min-h-[52px] w-full resize-y rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300 disabled:bg-slate-100"}
-                              />
-                              {isLinkColumn && href && (
-                                <a
-                                  href={href}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="mt-2 inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700"
+                            <td key={column.id} className="border-l border-t border-slate-100 px-3 py-3 align-top">
+                              {column.type === "status" ? (
+                                <select
+                                  value={value || "Idea"}
+                                  onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
+                                  className={`rounded-2xl px-3 py-2 text-xs font-black outline-none ${
+                                    (value || "Idea") === "Booked" ? "bg-emerald-100 text-emerald-700" :
+                                    (value || "Idea") === "Done" ? "bg-indigo-100 text-indigo-700" :
+                                    (value || "Idea") === "Rejected" ? "bg-red-100 text-red-700" :
+                                    (value || "Idea") === "Planning" ? "bg-amber-100 text-amber-700" :
+                                    "bg-slate-100 text-slate-600"
+                                  }`}
                                 >
-                                  Open Link <ExternalLink size={12} />
-                                </a>
+                                  {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                                </select>
+                              ) : column.type === "link" ? (
+                                <div className="flex min-w-[220px] items-center gap-2">
+                                  <input
+                                    value={value}
+                                    onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
+                                    placeholder="Paste link"
+                                    className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold outline-none focus:ring-4 focus:ring-indigo-100"
+                                  />
+                                  {value && (
+                                    <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noreferrer" className="rounded-2xl bg-indigo-600 px-3 py-2 text-xs font-black text-white">
+                                      Open
+                                    </a>
+                                  )}
+                                </div>
+                              ) : (
+                                <input
+                                  type={column.type === "money" ? "number" : column.type === "date" ? "date" : "text"}
+                                  value={value}
+                                  onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
+                                  placeholder={column.type === "money" ? "$0" : "Type here"}
+                                  className="w-full min-w-[170px] rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-100"
+                                />
                               )}
                             </td>
                           );
                         })}
-                        <td className={dark ? "border-b border-white/10 p-2 align-top" : "border-b border-slate-200 p-2 align-top"}>
-                          {user ? (
-                            <button
-                              onClick={() => deleteSpreadsheetRow(row.id)}
-                              className="rounded-2xl bg-red-50 p-3 text-red-500"
-                              title="Delete row"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          ) : (
-                            <span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-400">View</span>
-                          )}
+                        <td className="border-l border-t border-slate-100 px-3 py-3">
+                          <button onClick={() => deleteSpreadsheetRow(row.id)} className="rounded-xl bg-red-50 p-2 text-red-500 hover:bg-red-100">
+                            <Trash2 size={16} />
+                          </button>
                         </td>
                       </tr>
                     ))}
+                    {spreadsheetRows.length === 0 && (
+                      <tr>
+                        <td colSpan={spreadsheetColumns.length + 2} className="px-6 py-12 text-center">
+                          <p className="text-xl font-black text-slate-950">No rows yet.</p>
+                          <p className="mt-1 text-sm font-bold text-slate-400">Add your first spreadsheet row to start planning.</p>
+                          <button onClick={addSpreadsheetRow} className="mt-5 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">Add Row</button>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
-
-              {(spreadsheet.rows || []).length === 0 && (
-                <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                  <p className="text-lg font-black text-slate-800">No spreadsheet rows yet.</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-400">Click Add Row to start tracking your trip details.</p>
-                </div>
-              )}
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl bg-indigo-50 p-5">
-                <p className="text-xs font-black uppercase text-indigo-700">Rows</p>
-                <p className="mt-2 text-3xl font-black text-indigo-700">{(spreadsheet.rows || []).length}</p>
-              </div>
-              <div className="rounded-3xl bg-emerald-50 p-5">
-                <p className="text-xs font-black uppercase text-emerald-700">Columns</p>
-                <p className="mt-2 text-3xl font-black text-emerald-700">{(spreadsheet.columns || []).length}</p>
-              </div>
-              <div className="rounded-3xl bg-slate-950 p-5 text-white">
-                <p className="text-xs font-black uppercase text-slate-300">Editing</p>
-                <p className="mt-2 text-lg font-black">{user ? "Signed in" : "View only"}</p>
-              </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {spreadsheetRows.slice(0, 6).map((row, index) => {
+                const titleColumn = spreadsheetColumns[0];
+                const title = row.cells?.[titleColumn.id] || `Row ${index + 1}`;
+                const statusColumn = spreadsheetColumns.find((column) => column.type === "status");
+                const linkColumn = spreadsheetColumns.find((column) => column.type === "link");
+                const moneyColumn = spreadsheetColumns.find((column) => column.type === "money");
+                const status = statusColumn ? row.cells?.[statusColumn.id] || "Idea" : "Idea";
+                const link = linkColumn ? row.cells?.[linkColumn.id] : "";
+                const money = moneyColumn ? row.cells?.[moneyColumn.id] : "";
+                return (
+                  <div key={row.id} className="mobile-card-motion rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff,#eef2ff_65%,#ecfdf5)] p-5 shadow-[0_20px_60px_rgba(79,70,229,0.14)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-500">Sheet Card</p>
+                        <h3 className="mt-2 text-2xl font-black text-slate-950">{title}</h3>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-black ${
+                        status === "Booked" ? "bg-emerald-100 text-emerald-700" :
+                        status === "Done" ? "bg-indigo-100 text-indigo-700" :
+                        status === "Rejected" ? "bg-red-100 text-red-700" :
+                        status === "Planning" ? "bg-amber-100 text-amber-700" :
+                        "bg-slate-100 text-slate-600"
+                      }`}>{status}</span>
+                    </div>
+                    {money && <p className="mt-4 text-3xl font-black text-emerald-600">{currency(money)}</p>}
+                    <div className="mt-4 space-y-2">
+                      {spreadsheetColumns.slice(1, 5).map((column) => (
+                        <div key={column.id} className="flex justify-between gap-3 rounded-2xl bg-white/75 px-3 py-2 text-xs font-bold text-slate-500">
+                          <span>{column.title}</span>
+                          <span className="max-w-[160px] truncate text-slate-900">{row.cells?.[column.id] || "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {link && (
+                      <a href={link.startsWith("http") ? link : `https://${link}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">
+                        Open Link <ExternalLink size={15} />
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
@@ -1332,7 +1412,7 @@ function App() {
 
             <div className="border-t border-slate-200/20 p-4">
               <div className="mb-3 flex flex-wrap gap-2">
-                {["Who owes money?", "Summarize final picks", "Make a simple itinerary"].map((prompt) => (
+                {["Analyze spreadsheet", "Summarize final picks", "Make a simple itinerary"].map((prompt) => (
                   <button
                     key={prompt}
                     onClick={() => setAssistantInput(prompt)}
