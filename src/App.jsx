@@ -1268,6 +1268,26 @@ function App() {
         .mobile-card-motion { transition: transform 240ms ease, box-shadow 240ms ease, background-color 240ms ease; }
         .mobile-card-motion:active { transform: scale(0.99); }
         @media (hover: hover) { .mobile-card-motion:hover { transform: translateY(-4px); } }
+        @media (max-width: 767px) {
+          html, body, #root { max-width: 100%; overflow-x: hidden; }
+          .mobile-content-fit { zoom: 0.84; }
+          .mobile-board-section { width: 100%; max-width: 100%; overflow: hidden; border-radius: 1.55rem !important; padding: 1rem !important; }
+          .mobile-board-title { font-size: 2rem !important; line-height: 1.05 !important; }
+          .mobile-board-subtitle { font-size: .82rem !important; line-height: 1.35 !important; max-width: 100%; }
+          .mobile-total-card { margin-bottom: 1rem !important; border-radius: 1.35rem !important; padding: 1rem !important; }
+          .mobile-total-card-label { font-size: .68rem !important; letter-spacing: .12em !important; }
+          .mobile-total-card-number { font-size: 2.35rem !important; line-height: 1 !important; }
+          .mobile-total-card-sub { font-size: .95rem !important; }
+          .mobile-saved-card { border-radius: 1.25rem !important; padding: .85rem !important; box-shadow: 0 12px 32px rgba(79,70,229,.13) !important; }
+          .mobile-saved-card-title { font-size: 1.35rem !important; line-height: 1.05 !important; white-space: normal !important; }
+          .mobile-saved-card-badge { padding: .38rem .7rem !important; font-size: .55rem !important; letter-spacing: .16em !important; }
+          .mobile-saved-card-actions button { padding: .45rem .62rem !important; font-size: .68rem !important; border-radius: .75rem !important; }
+          .mobile-saved-card-stats { border-radius: 1rem !important; }
+          .mobile-saved-card-stat { padding: .65rem .7rem !important; }
+          .mobile-saved-card-stat-label { font-size: .54rem !important; letter-spacing: .12em !important; }
+          .mobile-saved-card-stat-value { font-size: 1.05rem !important; }
+          .mobile-bottom-nav { left: .65rem !important; right: .65rem !important; bottom: .65rem !important; border-radius: 1.55rem !important; }
+        }
         @keyframes pageFadeSlide { from { opacity: 0; transform: translateY(10px) scale(0.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .page-transition { animation: pageFadeSlide 260ms ease both; }
         @keyframes sakuraFall { 0% { transform: translate3d(0,-12vh,0) rotate(0deg); opacity: 0; } 10% { opacity: .95; } 100% { transform: translate3d(var(--drift),112vh,0) rotate(720deg); opacity: 0; } }
@@ -1632,7 +1652,7 @@ function App() {
         </div>
       </header>
 
-      <main key={active} className={`${showSidebar ? "mx-auto grid max-w-7xl gap-6 px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mx-auto max-w-7xl px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:px-8"} page-transition`}>
+      <main key={active} className={`${showSidebar ? "mobile-content-fit mx-auto grid max-w-7xl gap-4 px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mobile-content-fit mx-auto max-w-7xl px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:px-8"} page-transition`}>
         {showSidebar && (
           <aside className={`${panelClass} hidden md:block`}>
             <h2 className="text-2xl font-black">Who’s Going?</h2>
@@ -1684,23 +1704,23 @@ function App() {
         )}
 
         {boardCategories.includes(active) && (
-          <section className={panelClass}>
-            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div>
-                <h2 className="text-3xl font-black">{labels[active]}</h2>
-                <p className="mt-1 text-sm font-semibold text-slate-400">Draft suggestions first, then save them into premium cards.</p>
+          <section className={`${panelClass} mobile-board-section`}>
+            <div className="mb-4 flex flex-col justify-between gap-3 md:mb-6 md:flex-row md:items-center">
+              <div className="min-w-0">
+                <h2 className="mobile-board-title text-3xl font-black">{labels[active]}</h2>
+                <p className="mobile-board-subtitle mt-1 text-sm font-semibold text-slate-400">Draft suggestions first, then save them into premium cards.</p>
               </div>
-              <button onClick={addOption} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"><Plus size={18} />Add Suggestion</button>
+              <button onClick={addOption} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white md:w-auto md:px-5"><Plus size={18} />Add Suggestion</button>
             </div>
 
-            <div className="mb-6 rounded-3xl bg-emerald-50 p-5">
-              <p className="text-xs font-black uppercase tracking-wider text-emerald-700">{labels[active]} estimated total</p>
-              <p className="mt-2 text-4xl font-black text-emerald-700">{currency(activeTotal)}</p>
-              <p className="mt-1 text-sm font-bold text-emerald-600">Split by {headcount} confirmed people</p>
+            <div className="mobile-total-card mb-6 rounded-3xl bg-emerald-50 p-5">
+              <p className="mobile-total-card-label text-xs font-black uppercase tracking-wider text-emerald-700">{labels[active]} estimated total</p>
+              <p className="mobile-total-card-number mt-2 text-4xl font-black text-emerald-700">{currency(activeTotal)}</p>
+              <p className="mobile-total-card-sub mt-1 text-sm font-bold text-emerald-600">Split by {headcount} confirmed people</p>
             </div>
 
-            <div className="grid gap-8">
-              {savedItems.length > 0 && <div className="space-y-5"><div className="flex items-center gap-2"><CheckCircle2 className="text-indigo-500" size={21} /><h3 className="text-xl font-black">Saved Picks</h3></div>{savedItems.map((item, index) => <SavedSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} user={user} dark={dark} editSavedOption={editSavedOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />)}</div>}
+            <div className="grid gap-5 md:gap-8">
+              {savedItems.length > 0 && <div className="space-y-4 md:space-y-5"><div className="flex items-center gap-2"><CheckCircle2 className="text-indigo-500" size={21} /><h3 className="text-xl font-black">Saved Picks</h3></div>{savedItems.map((item, index) => <SavedSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} user={user} dark={dark} editSavedOption={editSavedOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />)}</div>}
               <div className="space-y-5"><h3 className="text-xl font-black">Draft Suggestions</h3>{draftItems.length === 0 && <div className={dark ? "rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center" : "rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"}><p className="text-lg font-black">No draft suggestions.</p><p className="mt-1 text-sm font-semibold text-slate-400">Click Add Suggestion to add one.</p></div>}{draftItems.map((item, index) => <DraftSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} hasPersonPrice={hasPersonPrice} inputClass={inputClass} dark={dark} user={user} updateOption={updateOption} saveOption={saveOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />)}</div>
             </div>
           </section>
@@ -2328,17 +2348,17 @@ function SavedSuggestionCard({ item, index, active, labels, user, dark, editSave
   const voteScore = getVoteScore(item);
 
   return (
-    <div className="mobile-card-motion group relative overflow-hidden rounded-[1.6rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_58%,#eef2ff_100%)] p-4 shadow-[0_16px_46px_rgba(79,70,229,0.14)] ring-1 ring-white hover:shadow-[0_22px_60px_rgba(79,70,229,0.18)] md:p-5">
+    <div className="mobile-card-motion mobile-saved-card group relative overflow-hidden rounded-[1.6rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_58%,#eef2ff_100%)] p-4 shadow-[0_16px_46px_rgba(79,70,229,0.14)] ring-1 ring-white hover:shadow-[0_22px_60px_rgba(79,70,229,0.18)] md:p-5">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
       <div className="absolute -right-12 -top-12 h-28 w-28 rounded-full bg-indigo-200/45 blur-2xl" />
       <div className="absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-emerald-200/45 blur-2xl" />
 
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white shadow-md">
+          <div className="mobile-saved-card-badge mb-2 inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white shadow-md">
             <CheckCircle2 size={12} /> Saved Pick
           </div>
-          <h3 className="truncate text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
+          <h3 className="mobile-saved-card-title truncate text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
             {item.title || `${labels[active]} Suggestion #${index + 1}`}
           </h3>
           <p className="mt-1 truncate text-xs font-bold text-slate-500">
@@ -2346,7 +2366,7 @@ function SavedSuggestionCard({ item, index, active, labels, user, dark, editSave
           </p>
         </div>
 
-        <div className="flex shrink-0 gap-1.5">
+        <div className="mobile-saved-card-actions flex shrink-0 gap-1.5">
           <button onClick={() => editSavedOption(item.id)} className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"><Pencil size={13} /> Edit</button>
           <button onClick={() => removeOption(item.id)} className="inline-flex items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"><Trash2 size={13} /> Delete</button>
         </div>
@@ -2358,18 +2378,18 @@ function SavedSuggestionCard({ item, index, active, labels, user, dark, editSave
         </p>
       )}
 
-      <div className="relative mt-4 grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm backdrop-blur">
-        <div className="p-3">
-          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Group</p>
-          <p className="mt-1 truncate text-lg font-black text-slate-950">{currency(groupTotal)}</p>
+      <div className="mobile-saved-card-stats relative mt-3 grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm backdrop-blur md:mt-4">
+        <div className="mobile-saved-card-stat p-3">
+          <p className="mobile-saved-card-stat-label text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Group</p>
+          <p className="mobile-saved-card-stat-value mt-1 truncate text-lg font-black text-slate-950">{currency(groupTotal)}</p>
         </div>
-        <div className="border-x border-slate-200 bg-emerald-50/80 p-3">
-          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-emerald-700">Person</p>
-          <p className="mt-1 truncate text-lg font-black text-emerald-700">{currency(pricePP)}</p>
+        <div className="mobile-saved-card-stat border-x border-slate-200 bg-emerald-50/80 p-3">
+          <p className="mobile-saved-card-stat-label text-[9px] font-black uppercase tracking-[0.12em] text-emerald-700">Person</p>
+          <p className="mobile-saved-card-stat-value mt-1 truncate text-lg font-black text-emerald-700">{currency(pricePP)}</p>
         </div>
-        <div className="bg-indigo-50/80 p-3">
-          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-indigo-700">Votes</p>
-          <p className="mt-1 truncate text-lg font-black text-indigo-700">{voteScore}</p>
+        <div className="mobile-saved-card-stat bg-indigo-50/80 p-3">
+          <p className="mobile-saved-card-stat-label text-[9px] font-black uppercase tracking-[0.12em] text-indigo-700">Votes</p>
+          <p className="mobile-saved-card-stat-value mt-1 truncate text-lg font-black text-indigo-700">{voteScore}</p>
         </div>
       </div>
 
