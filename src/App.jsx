@@ -256,11 +256,6 @@ function App() {
   const [zoomPickerOpen, setZoomPickerOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileHeaderHidden, setMobileHeaderHidden] = useState(false);
-  const [isMobileExperience, setIsMobileExperience] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const ua = navigator.userAgent || "";
-    return /Mobi|Android|iPhone|iPad|iPod/i.test(ua) || window.innerWidth < 768;
-  });
   const lastScrollY = useRef(0);
   const lastCursorWrite = useRef(0);
   const initialCloudLoad = useRef(false);
@@ -1188,7 +1183,6 @@ function App() {
     : "rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100";
 
   const showSidebar = active !== "budget";
-  const showDesktopSidebar = showSidebar && !isMobileExperience;
 
   const commandItems = [
     ...tabs.map((tab) => ({
@@ -1232,21 +1226,6 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    const updateMobileExperience = () => {
-      const ua = navigator.userAgent || "";
-      setIsMobileExperience(/Mobi|Android|iPhone|iPad|iPod/i.test(ua) || window.innerWidth < 768);
-    };
-
-    updateMobileExperience();
-    window.addEventListener("resize", updateMobileExperience);
-    window.addEventListener("orientationchange", updateMobileExperience);
-    return () => {
-      window.removeEventListener("resize", updateMobileExperience);
-      window.removeEventListener("orientationchange", updateMobileExperience);
-    };
   }, []);
 
   useEffect(() => {
@@ -1420,8 +1399,7 @@ function App() {
       </div>
 
 
-      {isMobileExperience && (
-      <header className={dark ? `sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 shadow-sm backdrop-blur-2xl transition-transform duration-300 ${mobileHeaderHidden && !mobileMenuOpen ? "-translate-y-full" : "translate-y-0"}` : `sticky top-0 z-50 border-b border-white/80 bg-white/92 shadow-sm backdrop-blur-2xl transition-transform duration-300 ${mobileHeaderHidden && !mobileMenuOpen ? "-translate-y-full" : "translate-y-0"}`}>
+      <header className={dark ? `sticky top-0 z-50 border-b border-white/10 bg-slate-950/82 shadow-sm backdrop-blur-2xl transition-transform duration-300 md:hidden ${mobileHeaderHidden && !mobileMenuOpen ? "-translate-y-full" : "translate-y-0"}` : `sticky top-0 z-50 border-b border-white/80 bg-white/85 shadow-sm backdrop-blur-2xl transition-transform duration-300 md:hidden ${mobileHeaderHidden && !mobileMenuOpen ? "-translate-y-full" : "translate-y-0"}`}>
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -1440,9 +1418,8 @@ function App() {
           </div>
         </div>
       </header>
-      )}
 
-      {isMobileExperience && mobileMenuOpen && (
+      {mobileMenuOpen && (
         <div className="fixed inset-0 z-[90] md:hidden">
           <button className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" />
           <div className={dark ? "absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col overflow-y-auto border-l border-white/10 bg-slate-950/95 p-5 text-white shadow-2xl" : "absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col overflow-y-auto border-l border-slate-200 bg-white p-5 text-slate-950 shadow-2xl"}>
@@ -1539,8 +1516,7 @@ function App() {
         </div>
       )}
 
-      {!isMobileExperience && (
-      <header className={dark ? "sticky top-0 z-50 border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl" : "sticky top-0 z-50 border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl"}>
+      <header className={dark ? "sticky top-0 z-50 hidden border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl md:block" : "sticky top-0 z-50 hidden border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl md:block"}>
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:px-8">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
             <div>
@@ -1655,11 +1631,10 @@ function App() {
           </div>
         </div>
       </header>
-      )}
 
-      <main key={active} className={`${showDesktopSidebar ? "mx-auto grid max-w-7xl gap-6 px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mx-auto max-w-7xl px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:px-8"} page-transition`}>
-        {showDesktopSidebar && (
-          <aside className={panelClass}>
+      <main key={active} className={`${showSidebar ? "mx-auto grid max-w-7xl gap-6 px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mx-auto max-w-7xl px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:px-8"} page-transition`}>
+        {showSidebar && (
+          <aside className={`${panelClass} hidden md:block`}>
             <h2 className="text-2xl font-black">Who’s Going?</h2>
             <p className="mt-1 text-sm font-semibold text-slate-400">Add names and confirm who is going.</p>
             <div className="mt-5 flex gap-2">
@@ -2152,8 +2127,7 @@ function App() {
       </main>
 
 
-      {isMobileExperience && (
-      <nav className={dark ? "fixed inset-x-3 bottom-3 z-[65] rounded-[1.75rem] border border-white/10 bg-slate-950/88 p-2 shadow-2xl backdrop-blur-2xl" : "fixed inset-x-3 bottom-3 z-[65] rounded-[1.75rem] border border-white/80 bg-white/90 p-2 shadow-2xl backdrop-blur-2xl"}>
+      <nav className={dark ? "fixed inset-x-3 bottom-3 z-[65] rounded-[1.75rem] border border-white/10 bg-slate-950/88 p-2 shadow-2xl backdrop-blur-2xl md:hidden" : "fixed inset-x-3 bottom-3 z-[65] rounded-[1.75rem] border border-white/80 bg-white/90 p-2 shadow-2xl backdrop-blur-2xl md:hidden"}>
         <div className="grid grid-cols-5 gap-1">
           {[
             { id: "flights", label: "Plans", icon: Plane },
@@ -2177,16 +2151,13 @@ function App() {
           })}
         </div>
       </nav>
-      )}
 
-      {!isMobileExperience && (
       <button
         onClick={() => setAssistantOpen(true)}
-        className="fixed bottom-5 right-5 z-[60] inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_18px_60px_rgba(15,23,42,0.35)] hover:bg-indigo-700"
+        className="fixed bottom-5 right-5 z-[60] hidden md:inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_18px_60px_rgba(15,23,42,0.35)] hover:bg-indigo-700"
       >
         <Bot size={20} /> Dallas AI
       </button>
-      )}
 
       {onlineUsers
         .filter((person) => person.uid !== user?.uid && person.cursor)
@@ -2352,54 +2323,62 @@ function DraftSuggestionCard({ item, index, active, labels, hasPersonPrice, inpu
 function SavedSuggestionCard({ item, index, active, labels, user, dark, editSavedOption, removeOption, getGroupTotal, getPricePP, voteOption, getVoteScore, addComment, removeComment }) {
   const href = item.link?.startsWith("http") ? item.link : item.link ? `https://${item.link}` : "";
   const userVote = user ? item.votes?.[user.uid] : undefined;
+  const groupTotal = getGroupTotal(item);
+  const pricePP = getPricePP(item);
+  const voteScore = getVoteScore(item);
 
   return (
-    <div className="mobile-card-motion group relative overflow-hidden rounded-[2.25rem] border border-indigo-200 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_42%,#ecfdf5_100%)] p-7 shadow-[0_30px_100px_rgba(79,70,229,0.20)] ring-4 ring-indigo-100 hover:shadow-[0_35px_120px_rgba(79,70,229,0.28)]">
-      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
-      <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-indigo-200/50 blur-3xl" />
-      <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-emerald-200/60 blur-3xl" />
+    <div className="mobile-card-motion group relative overflow-hidden rounded-[1.6rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_58%,#eef2ff_100%)] p-4 shadow-[0_16px_46px_rgba(79,70,229,0.14)] ring-1 ring-white hover:shadow-[0_22px_60px_rgba(79,70,229,0.18)] md:p-5">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
+      <div className="absolute -right-12 -top-12 h-28 w-28 rounded-full bg-indigo-200/45 blur-2xl" />
+      <div className="absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-emerald-200/45 blur-2xl" />
 
-      <div className="relative flex flex-col justify-between gap-5 md:flex-row md:items-start">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg">
-            <CheckCircle2 size={15} /> Saved Pick
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white shadow-md">
+            <CheckCircle2 size={12} /> Saved Pick
           </div>
-          <h3 className="mt-5 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+          <h3 className="truncate text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
             {item.title || `${labels[active]} Suggestion #${index + 1}`}
           </h3>
-          <p className="mt-2 text-sm font-bold text-slate-500">
-            Added by {item.createdByName || item.submittedBy || "Unknown"}
+          <p className="mt-1 truncate text-xs font-bold text-slate-500">
+            by {item.createdByName || item.submittedBy || "Unknown"}
           </p>
-          {item.notes && <p className="mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-700">{item.notes}</p>}
         </div>
 
-        <div className="flex flex-wrap gap-2 md:justify-end">
-          <button onClick={() => editSavedOption(item.id)} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"><Pencil size={15} /> Edit</button>
-          <button onClick={() => removeOption(item.id)} className="inline-flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"><Trash2 size={15} /> Delete</button>
+        <div className="flex shrink-0 gap-1.5">
+          <button onClick={() => editSavedOption(item.id)} className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"><Pencil size={13} /> Edit</button>
+          <button onClick={() => removeOption(item.id)} className="inline-flex items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"><Trash2 size={13} /> Delete</button>
         </div>
       </div>
 
-      <div className="relative mt-7 grid gap-4 md:grid-cols-3">
-        <div className="rounded-3xl bg-white/85 p-5 shadow-sm backdrop-blur">
-          <p className="text-xs font-black uppercase tracking-wider text-slate-400">Group Total</p>
-          <p className="mt-2 text-3xl font-black text-slate-950">{currency(getGroupTotal(item))}</p>
+      {item.notes && (
+        <p className="relative mt-3 line-clamp-2 text-sm font-semibold leading-6 text-slate-600">
+          {item.notes}
+        </p>
+      )}
+
+      <div className="relative mt-4 grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm backdrop-blur">
+        <div className="p-3">
+          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Group</p>
+          <p className="mt-1 truncate text-lg font-black text-slate-950">{currency(groupTotal)}</p>
         </div>
-        <div className="rounded-3xl bg-emerald-50/90 p-5 shadow-sm backdrop-blur">
-          <p className="text-xs font-black uppercase tracking-wider text-emerald-700">Per Person</p>
-          <p className="mt-2 text-3xl font-black text-emerald-700">{currency(getPricePP(item))}</p>
+        <div className="border-x border-slate-200 bg-emerald-50/80 p-3">
+          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-emerald-700">Person</p>
+          <p className="mt-1 truncate text-lg font-black text-emerald-700">{currency(pricePP)}</p>
         </div>
-        <div className="rounded-3xl bg-indigo-50/90 p-5 shadow-sm backdrop-blur">
-          <p className="text-xs font-black uppercase tracking-wider text-indigo-700">Votes</p>
-          <p className="mt-2 text-3xl font-black text-indigo-700">{getVoteScore(item)}</p>
+        <div className="bg-indigo-50/80 p-3">
+          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-indigo-700">Votes</p>
+          <p className="mt-1 truncate text-lg font-black text-indigo-700">{voteScore}</p>
         </div>
       </div>
 
-      <div className="relative mt-6 flex flex-wrap items-center gap-3">
-        {href && <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-indigo-700">Open Link <ExternalLink size={16} /></a>}
+      <div className="relative mt-4 flex flex-wrap items-center gap-2">
+        {href && <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-md transition hover:bg-indigo-700">Open <ExternalLink size={13} /></a>}
         <ActionRow item={item} user={user} userVote={userVote} voteOption={voteOption} getVoteScore={getVoteScore} compact />
       </div>
 
-      <CommentBox item={item} category={active} addComment={addComment} removeComment={removeComment} dark={dark} savedCard />
+      <CommentBox item={item} category={active} addComment={addComment} removeComment={removeComment} dark={dark} savedCard collapsedByDefault />
     </div>
   );
 }
@@ -2420,31 +2399,56 @@ function CostRow({ dark, groupTotal, pricePP }) {
 }
 
 function ActionRow({ item, user, userVote, voteOption, getVoteScore, compact = false }) {
+  const buttonSize = compact
+    ? "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black"
+    : "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-black";
+
   return (
     <div className={compact ? "flex flex-wrap items-center gap-2" : "mt-5 flex flex-wrap items-center gap-3"}>
-      <button onClick={() => voteOption(item.id, 1)} className={userVote === 1 ? "inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-black text-white" : "inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700"}><ThumbsUp size={16} /> Upvote</button>
-      <button onClick={() => voteOption(item.id, -1)} className={userVote === -1 ? "inline-flex items-center gap-2 rounded-2xl bg-red-600 px-4 py-2 text-sm font-black text-white" : "inline-flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-2 text-sm font-black text-red-600"}><ThumbsDown size={16} /> Downvote</button>
+      <button onClick={() => voteOption(item.id, 1)} className={userVote === 1 ? `${buttonSize} bg-emerald-600 text-white` : `${buttonSize} bg-emerald-50 text-emerald-700`}><ThumbsUp size={compact ? 14 : 16} /> {compact ? `Up ${getVoteScore(item) > 0 ? getVoteScore(item) : ""}` : "Upvote"}</button>
+      <button onClick={() => voteOption(item.id, -1)} className={userVote === -1 ? `${buttonSize} bg-red-600 text-white` : `${buttonSize} bg-red-50 text-red-600`}><ThumbsDown size={compact ? 14 : 16} /> {compact ? "Down" : "Downvote"}</button>
       {!compact && <span className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-black text-white">Score: {getVoteScore(item)}</span>}
     </div>
   );
 }
 
-function CommentBox({ item, category, addComment, removeComment, dark, savedCard = false }) {
+function CommentBox({ item, category, addComment, removeComment, dark, savedCard = false, collapsedByDefault = false }) {
   const [text, setText] = useState("");
+  const [open, setOpen] = useState(!collapsedByDefault);
+  const count = (item.comments || []).length;
+
   return (
-    <div className={savedCard ? "relative mt-5 rounded-3xl border border-indigo-100 bg-white/70 p-4 backdrop-blur" : "relative mt-5 rounded-3xl border border-slate-200/60 bg-white/40 p-4 backdrop-blur"}>
-      <div className="mb-3 flex items-center gap-2 text-sm font-black text-slate-800"><MessageCircle size={16} /> Comments</div>
-      <div className="space-y-2">
-        {(item.comments || []).map((comment) => (
-          <div key={comment.id} className={dark && !savedCard ? "flex items-start justify-between rounded-2xl bg-white/5 px-4 py-3" : "flex items-start justify-between rounded-2xl bg-white px-4 py-3"}>
-            <div><p className="text-xs font-black text-indigo-500">{comment.name}</p><p className="text-sm font-semibold text-slate-700">{comment.text}</p></div>
-            <button onClick={() => removeComment(item.id, category, comment.id)} className="text-red-500"><Trash2 size={14} /></button>
+    <div className={savedCard ? "relative mt-4 rounded-2xl border border-indigo-100 bg-white/70 p-3 backdrop-blur" : "relative mt-5 rounded-3xl border border-slate-200/60 bg-white/40 p-4 backdrop-blur"}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <div className="flex items-center gap-2 text-sm font-black text-slate-800">
+          <MessageCircle size={16} /> Comments {count > 0 ? `(${count})` : ""}
+        </div>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-500">
+          {open ? "Hide" : "Show"}
+        </span>
+      </button>
+
+      {open && (
+        <>
+          <div className="mt-3 space-y-2">
+            {(item.comments || []).map((comment) => (
+              <div key={comment.id} className={dark && !savedCard ? "flex items-start justify-between rounded-2xl bg-white/5 px-4 py-3" : "flex items-start justify-between rounded-2xl bg-white px-4 py-3"}>
+                <div><p className="text-xs font-black text-indigo-500">{comment.name}</p><p className="text-sm font-semibold text-slate-700">{comment.text}</p></div>
+                <button onClick={() => removeComment(item.id, category, comment.id)} className="text-red-500"><Trash2 size={14} /></button>
+              </div>
+            ))}
+            {count === 0 && <p className="rounded-2xl bg-white/70 px-4 py-3 text-xs font-bold text-slate-400">No comments yet.</p>}
           </div>
-        ))}
-      </div>
-      <div className="mt-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add comment" className={dark && !savedCard ? "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none" : "min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none"} /><button onClick={() => { addComment(item.id, category, text); setText(""); }} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Post</button></div>
+          <div className="mt-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add comment" className={dark && !savedCard ? "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none" : "min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none"} /><button onClick={() => { addComment(item.id, category, text); setText(""); }} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Post</button></div>
+        </>
+      )}
     </div>
   );
 }
+
 
 export default App;
