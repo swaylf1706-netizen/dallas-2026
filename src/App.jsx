@@ -35,6 +35,9 @@ import {
   MousePointer2,
   SlidersHorizontal,
   Sparkles,
+  Menu,
+  Home,
+  Settings,
 } from "lucide-react";
 
 const TRIP_START = new Date("2026-07-29T00:00:00");
@@ -251,6 +254,14 @@ function App() {
   const [commandQuery, setCommandQuery] = useState("");
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [zoomPickerOpen, setZoomPickerOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileHeaderHidden, setMobileHeaderHidden] = useState(false);
+  const [isMobileExperience, setIsMobileExperience] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(ua) || window.innerWidth < 768;
+  });
+  const lastScrollY = useRef(0);
   const lastCursorWrite = useRef(0);
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
@@ -1177,6 +1188,7 @@ function App() {
     : "rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100";
 
   const showSidebar = active !== "budget";
+  const showDesktopSidebar = showSidebar && !isMobileExperience;
 
   const commandItems = [
     ...tabs.map((tab) => ({
@@ -1220,6 +1232,38 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const updateMobileExperience = () => {
+      const ua = navigator.userAgent || "";
+      setIsMobileExperience(/Mobi|Android|iPhone|iPad|iPod/i.test(ua) || window.innerWidth < 768);
+    };
+
+    updateMobileExperience();
+    window.addEventListener("resize", updateMobileExperience);
+    window.addEventListener("orientationchange", updateMobileExperience);
+    return () => {
+      window.removeEventListener("resize", updateMobileExperience);
+      window.removeEventListener("orientationchange", updateMobileExperience);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY || 0;
+      if (currentY < 40) {
+        setMobileHeaderHidden(false);
+      } else if (currentY > lastScrollY.current + 12) {
+        setMobileHeaderHidden(true);
+      } else if (currentY < lastScrollY.current - 12) {
+        setMobileHeaderHidden(false);
+      }
+      lastScrollY.current = currentY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   if (authLoading) {
@@ -1375,6 +1419,127 @@ function App() {
         )}
       </div>
 
+
+      {isMobileExperience && (
+      <header className={dark ? `sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 shadow-sm backdrop-blur-2xl transition-transform duration-300 ${mobileHeaderHidden && !mobileMenuOpen ? "-translate-y-full" : "translate-y-0"}` : `sticky top-0 z-50 border-b border-white/80 bg-white/92 shadow-sm backdrop-blur-2xl transition-transform duration-300 ${mobileHeaderHidden && !mobileMenuOpen ? "-translate-y-full" : "translate-y-0"}`}>
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className={dark ? "truncate text-2xl font-black tracking-[-0.04em] text-white" : "truncate text-2xl font-black tracking-[-0.04em] text-slate-950"}>DALLAS 2026</h1>
+              <span className="rounded-full bg-indigo-600 px-2.5 py-1 text-[10px] font-black text-white">LIVE</span>
+            </div>
+            <p className="mt-0.5 flex items-center gap-1 text-xs font-black text-indigo-500"><CalendarDays size={13} /> {getTripCountdownText()}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button onClick={() => setAssistantOpen(true)} className={dark ? "rounded-2xl bg-white/10 p-3 text-white" : "rounded-2xl bg-indigo-50 p-3 text-indigo-700"} aria-label="Open Dallas Assistant">
+              <Bot size={18} />
+            </button>
+            <button onClick={() => setMobileMenuOpen(true)} className={dark ? "rounded-2xl bg-white/10 p-3 text-white" : "rounded-2xl bg-slate-950 p-3 text-white"} aria-label="Open mobile menu">
+              <Menu size={20} />
+            </button>
+          </div>
+        </div>
+      </header>
+      )}
+
+      {isMobileExperience && mobileMenuOpen && (
+        <div className="fixed inset-0 z-[90] md:hidden">
+          <button className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" />
+          <div className={dark ? "absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col overflow-y-auto border-l border-white/10 bg-slate-950/95 p-5 text-white shadow-2xl" : "absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col overflow-y-auto border-l border-slate-200 bg-white p-5 text-slate-950 shadow-2xl"}>
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-500">Mobile Menu</p>
+                <h2 className="mt-1 text-3xl font-black tracking-tight">Dallas 2026</h2>
+                <p className="mt-1 text-sm font-bold text-slate-400">Quick controls without the giant desktop header.</p>
+              </div>
+              <button onClick={() => setMobileMenuOpen(false)} className={dark ? "rounded-2xl bg-white/10 p-3 text-white" : "rounded-2xl bg-slate-100 p-3 text-slate-700"}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {!user ? (
+              <button onClick={handleLogin} className="mb-5 rounded-2xl bg-indigo-600 px-5 py-4 text-sm font-black text-white shadow-xl shadow-indigo-200">Sign in with Google</button>
+            ) : (
+              <div className={dark ? "mb-5 flex items-center gap-3 rounded-3xl border border-white/10 bg-white/10 p-4" : "mb-5 flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4"}>
+                <img src={user.photoURL || "https://ui-avatars.com/api/?name=User"} alt="" className="h-11 w-11 rounded-full" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-black">{user.displayName}</p>
+                  <p className="truncate text-xs font-bold text-slate-400">{user.email}</p>
+                </div>
+                <button onClick={handleLogout} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700">Logout</button>
+              </div>
+            )}
+
+            <div className="mb-5 grid grid-cols-2 gap-3">
+              <button onClick={() => setDark((prev) => !prev)} className={dark ? "rounded-3xl bg-white/10 p-4 text-left text-white" : "rounded-3xl bg-slate-100 p-4 text-left text-slate-800"}>
+                {dark ? <Sun size={20} /> : <Moon size={20} />}
+                <p className="mt-2 text-sm font-black">{dark ? "Light Mode" : "Dark Mode"}</p>
+              </button>
+              <button onClick={toggleNotifications} className={dark ? "relative rounded-3xl bg-white/10 p-4 text-left text-white" : "relative rounded-3xl bg-indigo-50 p-4 text-left text-indigo-700"}>
+                <Bell size={20} />
+                <p className="mt-2 text-sm font-black">Notifications</p>
+                {unreadNotifications > 0 && <span className="absolute right-3 top-3 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">{unreadNotifications}</span>}
+              </button>
+            </div>
+
+            <div className="mb-5">
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Themes</p>
+              <div className="flex gap-2 overflow-x-auto rounded-3xl bg-slate-950/5 p-2 dark:bg-white/5">
+                {themeChoices.map(([themeId, themeLabel, swatch, description, emoji]) => (
+                  <button
+                    key={themeId}
+                    onClick={() => setThemePreset(themeId)}
+                    title={`${themeLabel}: ${description}`}
+                    className={themePreset === themeId ? "relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border-2 border-white text-lg shadow-[0_10px_30px_rgba(79,70,229,.35)] ring-2 ring-indigo-500" : "relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/60 text-lg shadow-lg"}
+                  >
+                    <span className={`absolute inset-0 rounded-2xl ${swatch}`} />
+                    <span className="relative drop-shadow">{emoji}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Pages</p>
+              <div className="grid grid-cols-2 gap-2">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = active === tab.id;
+                  return (
+                    <button key={tab.id} onClick={() => { setActive(tab.id); setMobileMenuOpen(false); }} className={isActive ? "flex items-center gap-2 rounded-2xl bg-indigo-600 px-3 py-3 text-sm font-black text-white" : dark ? "flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-3 text-sm font-black text-slate-200" : "flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-3 text-sm font-black text-slate-700"}>
+                      <Icon size={16} /> {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">People</p>
+                <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-black text-emerald-700">{confirmedPeople} confirmed</span>
+              </div>
+              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                {data.people.map((person) => (
+                  <div key={person.id} className={dark ? "flex items-center justify-between rounded-2xl bg-white/10 px-3 py-2" : "flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2"}>
+                    <div>
+                      <p className="text-sm font-black">{person.name}</p>
+                      <p className={person.going ? "text-xs font-bold text-emerald-500" : "text-xs font-bold text-slate-400"}>{person.going ? "Going" : "Not confirmed"}</p>
+                    </div>
+                    <button onClick={() => togglePerson(person.id)} className={person.going ? "rounded-xl bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-700" : "rounded-xl bg-slate-200 px-3 py-2 text-xs font-black text-slate-700"}>{person.going ? "Confirmed" : "Confirm"}</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={() => { setAssistantOpen(true); setMobileMenuOpen(false); }} className="mt-auto rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-xl">
+              Open Dallas Assistant
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isMobileExperience && (
       <header className={dark ? "sticky top-0 z-50 border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl" : "sticky top-0 z-50 border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl"}>
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:px-8">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
@@ -1490,9 +1655,10 @@ function App() {
           </div>
         </div>
       </header>
+      )}
 
-      <main key={active} className={`${showSidebar ? "mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mx-auto max-w-7xl px-4 py-8 lg:px-8"} page-transition`}>
-        {showSidebar && (
+      <main key={active} className={`${showDesktopSidebar ? "mx-auto grid max-w-7xl gap-6 px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mx-auto max-w-7xl px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:px-8"} page-transition`}>
+        {showDesktopSidebar && (
           <aside className={panelClass}>
             <h2 className="text-2xl font-black">Who’s Going?</h2>
             <p className="mt-1 text-sm font-semibold text-slate-400">Add names and confirm who is going.</p>
@@ -1985,12 +2151,42 @@ function App() {
 
       </main>
 
+
+      {isMobileExperience && (
+      <nav className={dark ? "fixed inset-x-3 bottom-3 z-[65] rounded-[1.75rem] border border-white/10 bg-slate-950/88 p-2 shadow-2xl backdrop-blur-2xl" : "fixed inset-x-3 bottom-3 z-[65] rounded-[1.75rem] border border-white/80 bg-white/90 p-2 shadow-2xl backdrop-blur-2xl"}>
+        <div className="grid grid-cols-5 gap-1">
+          {[
+            { id: "flights", label: "Plans", icon: Plane },
+            { id: "stay", label: "Stay", icon: Hotel },
+            { id: "budget", label: "Sheet", icon: Wallet },
+            { id: "final", label: "Final", icon: Trophy },
+            { id: "menu", label: "Menu", icon: Menu },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = active === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => item.id === "menu" ? setMobileMenuOpen(true) : setActive(item.id)}
+                className={isActive ? "flex flex-col items-center justify-center rounded-2xl bg-indigo-600 px-2 py-2 text-[10px] font-black text-white" : dark ? "flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[10px] font-black text-slate-300" : "flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[10px] font-black text-slate-500"}
+              >
+                <Icon size={18} />
+                <span className="mt-1">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+      )}
+
+      {!isMobileExperience && (
       <button
         onClick={() => setAssistantOpen(true)}
         className="fixed bottom-5 right-5 z-[60] inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_18px_60px_rgba(15,23,42,0.35)] hover:bg-indigo-700"
       >
         <Bot size={20} /> Dallas AI
       </button>
+      )}
 
       {onlineUsers
         .filter((person) => person.uid !== user?.uid && person.cursor)
