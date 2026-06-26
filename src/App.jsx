@@ -35,9 +35,6 @@ import {
   MousePointer2,
   SlidersHorizontal,
   Sparkles,
-  Menu,
-  Home,
-  Settings,
 } from "lucide-react";
 
 const TRIP_START = new Date("2026-07-29T00:00:00");
@@ -51,6 +48,49 @@ const currency = (value) =>
 
 const num = (value) => Number(value) || 0;
 const uid = () => crypto.randomUUID();
+
+const LOCAL_TRIP_BACKUP_KEY = "dallas2026-trip-data-backup-v2";
+
+const canUseStorage = () => typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+
+const readLocalTripBackup = () => {
+  if (!canUseStorage()) return null;
+  try {
+    const saved = window.localStorage.getItem(LOCAL_TRIP_BACKUP_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    return parsed?.data ? parsed : null;
+  } catch (error) {
+    console.warn("Could not read Dallas local backup", error);
+    return null;
+  }
+};
+
+const writeLocalTripBackup = (data, clientUpdatedAt = Date.now(), pending = false) => {
+  if (!canUseStorage()) return;
+  try {
+    window.localStorage.setItem(
+      LOCAL_TRIP_BACKUP_KEY,
+      JSON.stringify({ data, clientUpdatedAt, pending, savedAt: Date.now() })
+    );
+  } catch (error) {
+    console.warn("Could not save Dallas local backup", error);
+  }
+};
+
+const markLocalTripBackupSynced = () => {
+  if (!canUseStorage()) return;
+  try {
+    const current = readLocalTripBackup();
+    if (!current) return;
+    window.localStorage.setItem(
+      LOCAL_TRIP_BACKUP_KEY,
+      JSON.stringify({ ...current, pending: false, savedAt: Date.now() })
+    );
+  } catch (error) {
+    console.warn("Could not mark Dallas backup synced", error);
+  }
+};
 
 
 const defaultSpreadsheet = {
@@ -254,12 +294,10 @@ function App() {
   const [commandQuery, setCommandQuery] = useState("");
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [zoomPickerOpen, setZoomPickerOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileHeaderHidden, setMobileHeaderHidden] = useState(false);
-  const lastScrollY = useRef(0);
   const lastCursorWrite = useRef(0);
   const initialCloudLoad = useRef(false);
   const latestLocalWrite = useRef(0);
+  const localBackupRef = useRef(readLocalTripBackup());
 
   const tripDoc = useMemo(() => doc(db, "trips", "dallas-2026"), []);
 
@@ -293,6 +331,14 @@ function App() {
   });
 
   useEffect(() => {
+    const backup = localBackupRef.current;
+    if (backup?.data) {
+      latestLocalWrite.current = Math.max(latestLocalWrite.current, num(backup.clientUpdatedAt));
+      setData(mergeData(backup.data));
+    }
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem("dallasDark", String(dark));
   }, [dark]);
 
@@ -310,42 +356,91 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(tripDoc, async (snapshot) => {
-      if (snapshot.metadata.hasPendingWrites) return;
+    const unsubscribe = onSnapshot(
+      tripDoc,
+      async (snapshot) => {
+        if (snapshot.metadata.hasPendingWrites) return;
 
-      if (snapshot.exists()) {
-        const cloudData = snapshot.data();
-        const cloudWriteTime = num(cloudData.clientUpdatedAt);
-        const justWroteLocally = Date.now() - latestLocalWrite.current < 2500;
+        const backup = localBackupRef.current || readLocalTripBackup();
+        const localWriteTime = num(backup?.clientUpdatedAt);
 
-        if (!initialCloudLoad.current && cloudData.data) {
-          setData(mergeData(cloudData.data));
-        } else if (cloudData.data && cloudWriteTime > latestLocalWrite.current && !justWroteLocally) {
-          setData(mergeData(cloudData.data));
+        if (snapshot.exists()) {
+          const cloudData = snapshot.data();
+          const cloudWriteTime = num(cloudData.clientUpdatedAt);
+          const justWroteLocally = Date.now() - latestLocalWrite.current < 2500;
+
+          if (backup?.data && localWriteTime > cloudWriteTime) {
+            const localData = mergeData(backup.data);
+            setData(localData);
+            latestLocalWrite.current = localWriteTime;
+
+            try {
+              await setDoc(
+                tripDoc,
+                {
+                  data: localData,
+                  clientUpdatedAt: localWriteTime,
+                  updatedAt: serverTimestamp(),
+                  updatedBy: user
+                    ? { uid: user.uid, name: user.displayName, email: user.email }
+                    : null,
+                },
+                { merge: true }
+              );
+              markLocalTripBackupSynced();
+              localBackupRef.current = { ...backup, data: localData, pending: false };
+            } catch (error) {
+              console.warn("Dallas local backup is newer but could not sync yet", error);
+            }
+          } else if (cloudData.data && (!justWroteLocally || !initialCloudLoad.current)) {
+            const mergedCloudData = mergeData(cloudData.data);
+            setData(mergedCloudData);
+            writeLocalTripBackup(mergedCloudData, cloudWriteTime, false);
+            localBackupRef.current = { data: mergedCloudData, clientUpdatedAt: cloudWriteTime, pending: false };
+          }
+        } else {
+          const writeTime = localWriteTime || Date.now();
+          const startingData = backup?.data ? mergeData(backup.data) : starter;
+          latestLocalWrite.current = writeTime;
+          setData(startingData);
+          writeLocalTripBackup(startingData, writeTime, true);
+          localBackupRef.current = { data: startingData, clientUpdatedAt: writeTime, pending: true };
+
+          try {
+            await setDoc(tripDoc, {
+              data: startingData,
+              clientUpdatedAt: writeTime,
+              updatedAt: serverTimestamp(),
+            });
+            markLocalTripBackupSynced();
+          } catch (error) {
+            console.warn("Could not create Dallas cloud document yet", error);
+          }
         }
-      } else {
-        const writeTime = Date.now();
-        latestLocalWrite.current = writeTime;
-        await setDoc(tripDoc, {
-          data: starter,
-          clientUpdatedAt: writeTime,
-          updatedAt: serverTimestamp(),
-        });
-      }
 
-      initialCloudLoad.current = true;
-      setCloudReady(true);
-    });
+        initialCloudLoad.current = true;
+        setCloudReady(true);
+      },
+      (error) => {
+        console.warn("Firebase sync failed, using local backup", error);
+        const backup = localBackupRef.current || readLocalTripBackup();
+        if (backup?.data) setData(mergeData(backup.data));
+        setCloudReady(false);
+        initialCloudLoad.current = true;
+      }
+    );
 
     return unsubscribe;
-  }, [tripDoc]);
+  }, [tripDoc, user]);
 
   const writeData = async (nextData) => {
     const writeTime = Date.now();
     latestLocalWrite.current = writeTime;
+    localBackupRef.current = { data: nextData, clientUpdatedAt: writeTime, pending: true };
+    writeLocalTripBackup(nextData, writeTime, true);
     setData(nextData);
 
-    if (!cloudReady) return;
+    if (!cloudReady || (typeof navigator !== "undefined" && !navigator.onLine)) return;
 
     await setDoc(
       tripDoc,
@@ -363,6 +458,9 @@ function App() {
       },
       { merge: true }
     );
+
+    markLocalTripBackupSynced();
+    localBackupRef.current = { data: nextData, clientUpdatedAt: writeTime, pending: false };
   };
 
   const updateData = (updater) => {
@@ -370,8 +468,10 @@ function App() {
       const nextData = updater(prev);
       const writeTime = Date.now();
       latestLocalWrite.current = writeTime;
+      localBackupRef.current = { data: nextData, clientUpdatedAt: writeTime, pending: true };
+      writeLocalTripBackup(nextData, writeTime, true);
 
-      if (cloudReady) {
+      if (cloudReady && !(typeof navigator !== "undefined" && !navigator.onLine)) {
         setDoc(
           tripDoc,
           {
@@ -387,12 +487,52 @@ function App() {
               : null,
           },
           { merge: true }
-        );
+        )
+          .then(() => {
+            markLocalTripBackupSynced();
+            localBackupRef.current = { data: nextData, clientUpdatedAt: writeTime, pending: false };
+          })
+          .catch((error) => {
+            console.warn("Dallas cloud save failed; local backup kept", error);
+          });
       }
 
       return nextData;
     });
   };
+
+  useEffect(() => {
+    const syncPendingBackup = async () => {
+      if (!cloudReady || (typeof navigator !== "undefined" && !navigator.onLine)) return;
+      const backup = localBackupRef.current || readLocalTripBackup();
+      if (!backup?.data || !backup.pending) return;
+
+      try {
+        const writeTime = num(backup.clientUpdatedAt) || Date.now();
+        const localData = mergeData(backup.data);
+        await setDoc(
+          tripDoc,
+          {
+            data: localData,
+            clientUpdatedAt: writeTime,
+            updatedAt: serverTimestamp(),
+            updatedBy: user
+              ? { uid: user.uid, name: user.displayName, email: user.email }
+              : null,
+          },
+          { merge: true }
+        );
+        markLocalTripBackupSynced();
+        localBackupRef.current = { data: localData, clientUpdatedAt: writeTime, pending: false };
+      } catch (error) {
+        console.warn("Pending Dallas local changes could not sync yet", error);
+      }
+    };
+
+    syncPendingBackup();
+    window.addEventListener("online", syncPendingBackup);
+    return () => window.removeEventListener("online", syncPendingBackup);
+  }, [cloudReady, tripDoc, user]);
 
   const notify = (message) => {
     updateData((prev) => ({
@@ -1228,23 +1368,6 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentY = window.scrollY || 0;
-      if (currentY < 40) {
-        setMobileHeaderHidden(false);
-      } else if (currentY > lastScrollY.current + 12) {
-        setMobileHeaderHidden(true);
-      } else if (currentY < lastScrollY.current - 12) {
-        setMobileHeaderHidden(false);
-      }
-      lastScrollY.current = currentY;
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   if (authLoading) {
     return (
       <div className={pageClass}>
@@ -1268,26 +1391,6 @@ function App() {
         .mobile-card-motion { transition: transform 240ms ease, box-shadow 240ms ease, background-color 240ms ease; }
         .mobile-card-motion:active { transform: scale(0.99); }
         @media (hover: hover) { .mobile-card-motion:hover { transform: translateY(-4px); } }
-        @media (max-width: 767px) {
-          html, body, #root { max-width: 100%; overflow-x: hidden; }
-          .mobile-content-fit { zoom: 0.84; }
-          .mobile-board-section { width: 100%; max-width: 100%; overflow: hidden; border-radius: 1.55rem !important; padding: 1rem !important; }
-          .mobile-board-title { font-size: 2rem !important; line-height: 1.05 !important; }
-          .mobile-board-subtitle { font-size: .82rem !important; line-height: 1.35 !important; max-width: 100%; }
-          .mobile-total-card { margin-bottom: 1rem !important; border-radius: 1.35rem !important; padding: 1rem !important; }
-          .mobile-total-card-label { font-size: .68rem !important; letter-spacing: .12em !important; }
-          .mobile-total-card-number { font-size: 2.35rem !important; line-height: 1 !important; }
-          .mobile-total-card-sub { font-size: .95rem !important; }
-          .mobile-saved-card { border-radius: 1.25rem !important; padding: .85rem !important; box-shadow: 0 12px 32px rgba(79,70,229,.13) !important; }
-          .mobile-saved-card-title { font-size: 1.35rem !important; line-height: 1.05 !important; white-space: normal !important; }
-          .mobile-saved-card-badge { padding: .38rem .7rem !important; font-size: .55rem !important; letter-spacing: .16em !important; }
-          .mobile-saved-card-actions button { padding: .45rem .62rem !important; font-size: .68rem !important; border-radius: .75rem !important; }
-          .mobile-saved-card-stats { border-radius: 1rem !important; }
-          .mobile-saved-card-stat { padding: .65rem .7rem !important; }
-          .mobile-saved-card-stat-label { font-size: .54rem !important; letter-spacing: .12em !important; }
-          .mobile-saved-card-stat-value { font-size: 1.05rem !important; }
-          .mobile-bottom-nav { left: .65rem !important; right: .65rem !important; bottom: .65rem !important; border-radius: 1.55rem !important; }
-        }
         @keyframes pageFadeSlide { from { opacity: 0; transform: translateY(10px) scale(0.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .page-transition { animation: pageFadeSlide 260ms ease both; }
         @keyframes sakuraFall { 0% { transform: translate3d(0,-12vh,0) rotate(0deg); opacity: 0; } 10% { opacity: .95; } 100% { transform: translate3d(var(--drift),112vh,0) rotate(720deg); opacity: 0; } }
@@ -1418,125 +1521,7 @@ function App() {
         )}
       </div>
 
-
-      <header className={dark ? `sticky top-0 z-50 border-b border-white/10 bg-slate-950/82 shadow-sm backdrop-blur-2xl transition-transform duration-300 md:hidden ${mobileHeaderHidden && !mobileMenuOpen ? "-translate-y-full" : "translate-y-0"}` : `sticky top-0 z-50 border-b border-white/80 bg-white/85 shadow-sm backdrop-blur-2xl transition-transform duration-300 md:hidden ${mobileHeaderHidden && !mobileMenuOpen ? "-translate-y-full" : "translate-y-0"}`}>
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className={dark ? "truncate text-2xl font-black tracking-[-0.04em] text-white" : "truncate text-2xl font-black tracking-[-0.04em] text-slate-950"}>DALLAS 2026</h1>
-              <span className="rounded-full bg-indigo-600 px-2.5 py-1 text-[10px] font-black text-white">LIVE</span>
-            </div>
-            <p className="mt-0.5 flex items-center gap-1 text-xs font-black text-indigo-500"><CalendarDays size={13} /> {getTripCountdownText()}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button onClick={() => setAssistantOpen(true)} className={dark ? "rounded-2xl bg-white/10 p-3 text-white" : "rounded-2xl bg-indigo-50 p-3 text-indigo-700"} aria-label="Open Dallas Assistant">
-              <Bot size={18} />
-            </button>
-            <button onClick={() => setMobileMenuOpen(true)} className={dark ? "rounded-2xl bg-white/10 p-3 text-white" : "rounded-2xl bg-slate-950 p-3 text-white"} aria-label="Open mobile menu">
-              <Menu size={20} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[90] md:hidden">
-          <button className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" />
-          <div className={dark ? "absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col overflow-y-auto border-l border-white/10 bg-slate-950/95 p-5 text-white shadow-2xl" : "absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col overflow-y-auto border-l border-slate-200 bg-white p-5 text-slate-950 shadow-2xl"}>
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-500">Mobile Menu</p>
-                <h2 className="mt-1 text-3xl font-black tracking-tight">Dallas 2026</h2>
-                <p className="mt-1 text-sm font-bold text-slate-400">Quick controls without the giant desktop header.</p>
-              </div>
-              <button onClick={() => setMobileMenuOpen(false)} className={dark ? "rounded-2xl bg-white/10 p-3 text-white" : "rounded-2xl bg-slate-100 p-3 text-slate-700"}>
-                <X size={18} />
-              </button>
-            </div>
-
-            {!user ? (
-              <button onClick={handleLogin} className="mb-5 rounded-2xl bg-indigo-600 px-5 py-4 text-sm font-black text-white shadow-xl shadow-indigo-200">Sign in with Google</button>
-            ) : (
-              <div className={dark ? "mb-5 flex items-center gap-3 rounded-3xl border border-white/10 bg-white/10 p-4" : "mb-5 flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4"}>
-                <img src={user.photoURL || "https://ui-avatars.com/api/?name=User"} alt="" className="h-11 w-11 rounded-full" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-black">{user.displayName}</p>
-                  <p className="truncate text-xs font-bold text-slate-400">{user.email}</p>
-                </div>
-                <button onClick={handleLogout} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700">Logout</button>
-              </div>
-            )}
-
-            <div className="mb-5 grid grid-cols-2 gap-3">
-              <button onClick={() => setDark((prev) => !prev)} className={dark ? "rounded-3xl bg-white/10 p-4 text-left text-white" : "rounded-3xl bg-slate-100 p-4 text-left text-slate-800"}>
-                {dark ? <Sun size={20} /> : <Moon size={20} />}
-                <p className="mt-2 text-sm font-black">{dark ? "Light Mode" : "Dark Mode"}</p>
-              </button>
-              <button onClick={toggleNotifications} className={dark ? "relative rounded-3xl bg-white/10 p-4 text-left text-white" : "relative rounded-3xl bg-indigo-50 p-4 text-left text-indigo-700"}>
-                <Bell size={20} />
-                <p className="mt-2 text-sm font-black">Notifications</p>
-                {unreadNotifications > 0 && <span className="absolute right-3 top-3 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">{unreadNotifications}</span>}
-              </button>
-            </div>
-
-            <div className="mb-5">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Themes</p>
-              <div className="flex gap-2 overflow-x-auto rounded-3xl bg-slate-950/5 p-2 dark:bg-white/5">
-                {themeChoices.map(([themeId, themeLabel, swatch, description, emoji]) => (
-                  <button
-                    key={themeId}
-                    onClick={() => setThemePreset(themeId)}
-                    title={`${themeLabel}: ${description}`}
-                    className={themePreset === themeId ? "relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border-2 border-white text-lg shadow-[0_10px_30px_rgba(79,70,229,.35)] ring-2 ring-indigo-500" : "relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/60 text-lg shadow-lg"}
-                  >
-                    <span className={`absolute inset-0 rounded-2xl ${swatch}`} />
-                    <span className="relative drop-shadow">{emoji}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-5">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Pages</p>
-              <div className="grid grid-cols-2 gap-2">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = active === tab.id;
-                  return (
-                    <button key={tab.id} onClick={() => { setActive(tab.id); setMobileMenuOpen(false); }} className={isActive ? "flex items-center gap-2 rounded-2xl bg-indigo-600 px-3 py-3 text-sm font-black text-white" : dark ? "flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-3 text-sm font-black text-slate-200" : "flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-3 text-sm font-black text-slate-700"}>
-                      <Icon size={16} /> {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mb-5">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">People</p>
-                <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-black text-emerald-700">{confirmedPeople} confirmed</span>
-              </div>
-              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                {data.people.map((person) => (
-                  <div key={person.id} className={dark ? "flex items-center justify-between rounded-2xl bg-white/10 px-3 py-2" : "flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2"}>
-                    <div>
-                      <p className="text-sm font-black">{person.name}</p>
-                      <p className={person.going ? "text-xs font-bold text-emerald-500" : "text-xs font-bold text-slate-400"}>{person.going ? "Going" : "Not confirmed"}</p>
-                    </div>
-                    <button onClick={() => togglePerson(person.id)} className={person.going ? "rounded-xl bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-700" : "rounded-xl bg-slate-200 px-3 py-2 text-xs font-black text-slate-700"}>{person.going ? "Confirmed" : "Confirm"}</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button onClick={() => { setAssistantOpen(true); setMobileMenuOpen(false); }} className="mt-auto rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-xl">
-              Open Dallas Assistant
-            </button>
-          </div>
-        </div>
-      )}
-
-      <header className={dark ? "sticky top-0 z-50 hidden border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl md:block" : "sticky top-0 z-50 hidden border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl md:block"}>
+      <header className={dark ? "sticky top-0 z-50 border-b border-white/10 bg-slate-950/75 shadow-sm backdrop-blur-2xl" : "sticky top-0 z-50 border-b border-white/80 bg-white/75 shadow-sm backdrop-blur-2xl"}>
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:px-8">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
             <div>
@@ -1652,9 +1637,9 @@ function App() {
         </div>
       </header>
 
-      <main key={active} className={`${showSidebar ? "mobile-content-fit mx-auto grid max-w-7xl gap-4 px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mobile-content-fit mx-auto max-w-7xl px-3 py-4 pb-28 md:px-4 md:py-8 md:pb-8 lg:px-8"} page-transition`}>
+      <main key={active} className={`${showSidebar ? "mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[360px_1fr] lg:px-8" : "mx-auto max-w-7xl px-4 py-8 lg:px-8"} page-transition`}>
         {showSidebar && (
-          <aside className={`${panelClass} hidden md:block`}>
+          <aside className={panelClass}>
             <h2 className="text-2xl font-black">Who’s Going?</h2>
             <p className="mt-1 text-sm font-semibold text-slate-400">Add names and confirm who is going.</p>
             <div className="mt-5 flex gap-2">
@@ -1704,23 +1689,23 @@ function App() {
         )}
 
         {boardCategories.includes(active) && (
-          <section className={`${panelClass} mobile-board-section`}>
-            <div className="mb-4 flex flex-col justify-between gap-3 md:mb-6 md:flex-row md:items-center">
-              <div className="min-w-0">
-                <h2 className="mobile-board-title text-3xl font-black">{labels[active]}</h2>
-                <p className="mobile-board-subtitle mt-1 text-sm font-semibold text-slate-400">Draft suggestions first, then save them into premium cards.</p>
+          <section className={panelClass}>
+            <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+              <div>
+                <h2 className="text-3xl font-black">{labels[active]}</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-400">Draft suggestions first, then save them into premium cards.</p>
               </div>
-              <button onClick={addOption} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white md:w-auto md:px-5"><Plus size={18} />Add Suggestion</button>
+              <button onClick={addOption} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"><Plus size={18} />Add Suggestion</button>
             </div>
 
-            <div className="mobile-total-card mb-6 rounded-3xl bg-emerald-50 p-5">
-              <p className="mobile-total-card-label text-xs font-black uppercase tracking-wider text-emerald-700">{labels[active]} estimated total</p>
-              <p className="mobile-total-card-number mt-2 text-4xl font-black text-emerald-700">{currency(activeTotal)}</p>
-              <p className="mobile-total-card-sub mt-1 text-sm font-bold text-emerald-600">Split by {headcount} confirmed people</p>
+            <div className="mb-6 rounded-3xl bg-emerald-50 p-5">
+              <p className="text-xs font-black uppercase tracking-wider text-emerald-700">{labels[active]} estimated total</p>
+              <p className="mt-2 text-4xl font-black text-emerald-700">{currency(activeTotal)}</p>
+              <p className="mt-1 text-sm font-bold text-emerald-600">Split by {headcount} confirmed people</p>
             </div>
 
-            <div className="grid gap-5 md:gap-8">
-              {savedItems.length > 0 && <div className="space-y-4 md:space-y-5"><div className="flex items-center gap-2"><CheckCircle2 className="text-indigo-500" size={21} /><h3 className="text-xl font-black">Saved Picks</h3></div>{savedItems.map((item, index) => <SavedSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} user={user} dark={dark} editSavedOption={editSavedOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />)}</div>}
+            <div className="grid gap-8">
+              {savedItems.length > 0 && <div className="space-y-5"><div className="flex items-center gap-2"><CheckCircle2 className="text-indigo-500" size={21} /><h3 className="text-xl font-black">Saved Picks</h3></div>{savedItems.map((item, index) => <SavedSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} user={user} dark={dark} editSavedOption={editSavedOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />)}</div>}
               <div className="space-y-5"><h3 className="text-xl font-black">Draft Suggestions</h3>{draftItems.length === 0 && <div className={dark ? "rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center" : "rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"}><p className="text-lg font-black">No draft suggestions.</p><p className="mt-1 text-sm font-semibold text-slate-400">Click Add Suggestion to add one.</p></div>}{draftItems.map((item, index) => <DraftSuggestionCard key={item.id} item={item} index={index} active={active} labels={labels} hasPersonPrice={hasPersonPrice} inputClass={inputClass} dark={dark} user={user} updateOption={updateOption} saveOption={saveOption} removeOption={removeOption} getGroupTotal={getGroupTotal} getPricePP={getPricePP} voteOption={voteOption} getVoteScore={getVoteScore} addComment={addComment} removeComment={removeComment} />)}</div>
             </div>
           </section>
@@ -2146,35 +2131,9 @@ function App() {
 
       </main>
 
-
-      <nav className={dark ? "fixed inset-x-3 bottom-3 z-[65] rounded-[1.75rem] border border-white/10 bg-slate-950/88 p-2 shadow-2xl backdrop-blur-2xl md:hidden" : "fixed inset-x-3 bottom-3 z-[65] rounded-[1.75rem] border border-white/80 bg-white/90 p-2 shadow-2xl backdrop-blur-2xl md:hidden"}>
-        <div className="grid grid-cols-5 gap-1">
-          {[
-            { id: "flights", label: "Plans", icon: Plane },
-            { id: "stay", label: "Stay", icon: Hotel },
-            { id: "budget", label: "Sheet", icon: Wallet },
-            { id: "final", label: "Final", icon: Trophy },
-            { id: "menu", label: "Menu", icon: Menu },
-          ].map((item) => {
-            const Icon = item.icon;
-            const isActive = active === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => item.id === "menu" ? setMobileMenuOpen(true) : setActive(item.id)}
-                className={isActive ? "flex flex-col items-center justify-center rounded-2xl bg-indigo-600 px-2 py-2 text-[10px] font-black text-white" : dark ? "flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[10px] font-black text-slate-300" : "flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-[10px] font-black text-slate-500"}
-              >
-                <Icon size={18} />
-                <span className="mt-1">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-
       <button
         onClick={() => setAssistantOpen(true)}
-        className="fixed bottom-5 right-5 z-[60] hidden md:inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_18px_60px_rgba(15,23,42,0.35)] hover:bg-indigo-700"
+        className="fixed bottom-5 right-5 z-[60] inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-[0_18px_60px_rgba(15,23,42,0.35)] hover:bg-indigo-700"
       >
         <Bot size={20} /> Dallas AI
       </button>
@@ -2343,62 +2302,54 @@ function DraftSuggestionCard({ item, index, active, labels, hasPersonPrice, inpu
 function SavedSuggestionCard({ item, index, active, labels, user, dark, editSavedOption, removeOption, getGroupTotal, getPricePP, voteOption, getVoteScore, addComment, removeComment }) {
   const href = item.link?.startsWith("http") ? item.link : item.link ? `https://${item.link}` : "";
   const userVote = user ? item.votes?.[user.uid] : undefined;
-  const groupTotal = getGroupTotal(item);
-  const pricePP = getPricePP(item);
-  const voteScore = getVoteScore(item);
 
   return (
-    <div className="mobile-card-motion mobile-saved-card group relative overflow-hidden rounded-[1.6rem] border border-indigo-100 bg-[radial-gradient(circle_at_top_left,#ffffff_0%,#f8fafc_58%,#eef2ff_100%)] p-4 shadow-[0_16px_46px_rgba(79,70,229,0.14)] ring-1 ring-white hover:shadow-[0_22px_60px_rgba(79,70,229,0.18)] md:p-5">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
-      <div className="absolute -right-12 -top-12 h-28 w-28 rounded-full bg-indigo-200/45 blur-2xl" />
-      <div className="absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-emerald-200/45 blur-2xl" />
+    <div className="mobile-card-motion group relative overflow-hidden rounded-[2.25rem] border border-indigo-200 bg-[radial-gradient(circle_at_top_left,#eef2ff,#ffffff_42%,#ecfdf5_100%)] p-7 shadow-[0_30px_100px_rgba(79,70,229,0.20)] ring-4 ring-indigo-100 hover:shadow-[0_35px_120px_rgba(79,70,229,0.28)]">
+      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400" />
+      <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-indigo-200/50 blur-3xl" />
+      <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-emerald-200/60 blur-3xl" />
 
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="mobile-saved-card-badge mb-2 inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white shadow-md">
-            <CheckCircle2 size={12} /> Saved Pick
+      <div className="relative flex flex-col justify-between gap-5 md:flex-row md:items-start">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg">
+            <CheckCircle2 size={15} /> Saved Pick
           </div>
-          <h3 className="mobile-saved-card-title truncate text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
+          <h3 className="mt-5 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
             {item.title || `${labels[active]} Suggestion #${index + 1}`}
           </h3>
-          <p className="mt-1 truncate text-xs font-bold text-slate-500">
-            by {item.createdByName || item.submittedBy || "Unknown"}
+          <p className="mt-2 text-sm font-bold text-slate-500">
+            Added by {item.createdByName || item.submittedBy || "Unknown"}
           </p>
+          {item.notes && <p className="mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-700">{item.notes}</p>}
         </div>
 
-        <div className="mobile-saved-card-actions flex shrink-0 gap-1.5">
-          <button onClick={() => editSavedOption(item.id)} className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"><Pencil size={13} /> Edit</button>
-          <button onClick={() => removeOption(item.id)} className="inline-flex items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"><Trash2 size={13} /> Delete</button>
+        <div className="flex flex-wrap gap-2 md:justify-end">
+          <button onClick={() => editSavedOption(item.id)} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"><Pencil size={15} /> Edit</button>
+          <button onClick={() => removeOption(item.id)} className="inline-flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"><Trash2 size={15} /> Delete</button>
         </div>
       </div>
 
-      {item.notes && (
-        <p className="relative mt-3 line-clamp-2 text-sm font-semibold leading-6 text-slate-600">
-          {item.notes}
-        </p>
-      )}
-
-      <div className="mobile-saved-card-stats relative mt-3 grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-sm backdrop-blur md:mt-4">
-        <div className="mobile-saved-card-stat p-3">
-          <p className="mobile-saved-card-stat-label text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Group</p>
-          <p className="mobile-saved-card-stat-value mt-1 truncate text-lg font-black text-slate-950">{currency(groupTotal)}</p>
+      <div className="relative mt-7 grid gap-4 md:grid-cols-3">
+        <div className="rounded-3xl bg-white/85 p-5 shadow-sm backdrop-blur">
+          <p className="text-xs font-black uppercase tracking-wider text-slate-400">Group Total</p>
+          <p className="mt-2 text-3xl font-black text-slate-950">{currency(getGroupTotal(item))}</p>
         </div>
-        <div className="mobile-saved-card-stat border-x border-slate-200 bg-emerald-50/80 p-3">
-          <p className="mobile-saved-card-stat-label text-[9px] font-black uppercase tracking-[0.12em] text-emerald-700">Person</p>
-          <p className="mobile-saved-card-stat-value mt-1 truncate text-lg font-black text-emerald-700">{currency(pricePP)}</p>
+        <div className="rounded-3xl bg-emerald-50/90 p-5 shadow-sm backdrop-blur">
+          <p className="text-xs font-black uppercase tracking-wider text-emerald-700">Per Person</p>
+          <p className="mt-2 text-3xl font-black text-emerald-700">{currency(getPricePP(item))}</p>
         </div>
-        <div className="mobile-saved-card-stat bg-indigo-50/80 p-3">
-          <p className="mobile-saved-card-stat-label text-[9px] font-black uppercase tracking-[0.12em] text-indigo-700">Votes</p>
-          <p className="mobile-saved-card-stat-value mt-1 truncate text-lg font-black text-indigo-700">{voteScore}</p>
+        <div className="rounded-3xl bg-indigo-50/90 p-5 shadow-sm backdrop-blur">
+          <p className="text-xs font-black uppercase tracking-wider text-indigo-700">Votes</p>
+          <p className="mt-2 text-3xl font-black text-indigo-700">{getVoteScore(item)}</p>
         </div>
       </div>
 
-      <div className="relative mt-4 flex flex-wrap items-center gap-2">
-        {href && <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-md transition hover:bg-indigo-700">Open <ExternalLink size={13} /></a>}
+      <div className="relative mt-6 flex flex-wrap items-center gap-3">
+        {href && <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-indigo-700">Open Link <ExternalLink size={16} /></a>}
         <ActionRow item={item} user={user} userVote={userVote} voteOption={voteOption} getVoteScore={getVoteScore} compact />
       </div>
 
-      <CommentBox item={item} category={active} addComment={addComment} removeComment={removeComment} dark={dark} savedCard collapsedByDefault />
+      <CommentBox item={item} category={active} addComment={addComment} removeComment={removeComment} dark={dark} savedCard />
     </div>
   );
 }
@@ -2419,56 +2370,31 @@ function CostRow({ dark, groupTotal, pricePP }) {
 }
 
 function ActionRow({ item, user, userVote, voteOption, getVoteScore, compact = false }) {
-  const buttonSize = compact
-    ? "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black"
-    : "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-black";
-
   return (
     <div className={compact ? "flex flex-wrap items-center gap-2" : "mt-5 flex flex-wrap items-center gap-3"}>
-      <button onClick={() => voteOption(item.id, 1)} className={userVote === 1 ? `${buttonSize} bg-emerald-600 text-white` : `${buttonSize} bg-emerald-50 text-emerald-700`}><ThumbsUp size={compact ? 14 : 16} /> {compact ? `Up ${getVoteScore(item) > 0 ? getVoteScore(item) : ""}` : "Upvote"}</button>
-      <button onClick={() => voteOption(item.id, -1)} className={userVote === -1 ? `${buttonSize} bg-red-600 text-white` : `${buttonSize} bg-red-50 text-red-600`}><ThumbsDown size={compact ? 14 : 16} /> {compact ? "Down" : "Downvote"}</button>
+      <button onClick={() => voteOption(item.id, 1)} className={userVote === 1 ? "inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-black text-white" : "inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700"}><ThumbsUp size={16} /> Upvote</button>
+      <button onClick={() => voteOption(item.id, -1)} className={userVote === -1 ? "inline-flex items-center gap-2 rounded-2xl bg-red-600 px-4 py-2 text-sm font-black text-white" : "inline-flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-2 text-sm font-black text-red-600"}><ThumbsDown size={16} /> Downvote</button>
       {!compact && <span className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-black text-white">Score: {getVoteScore(item)}</span>}
     </div>
   );
 }
 
-function CommentBox({ item, category, addComment, removeComment, dark, savedCard = false, collapsedByDefault = false }) {
+function CommentBox({ item, category, addComment, removeComment, dark, savedCard = false }) {
   const [text, setText] = useState("");
-  const [open, setOpen] = useState(!collapsedByDefault);
-  const count = (item.comments || []).length;
-
   return (
-    <div className={savedCard ? "relative mt-4 rounded-2xl border border-indigo-100 bg-white/70 p-3 backdrop-blur" : "relative mt-5 rounded-3xl border border-slate-200/60 bg-white/40 p-4 backdrop-blur"}>
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <div className="flex items-center gap-2 text-sm font-black text-slate-800">
-          <MessageCircle size={16} /> Comments {count > 0 ? `(${count})` : ""}
-        </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-500">
-          {open ? "Hide" : "Show"}
-        </span>
-      </button>
-
-      {open && (
-        <>
-          <div className="mt-3 space-y-2">
-            {(item.comments || []).map((comment) => (
-              <div key={comment.id} className={dark && !savedCard ? "flex items-start justify-between rounded-2xl bg-white/5 px-4 py-3" : "flex items-start justify-between rounded-2xl bg-white px-4 py-3"}>
-                <div><p className="text-xs font-black text-indigo-500">{comment.name}</p><p className="text-sm font-semibold text-slate-700">{comment.text}</p></div>
-                <button onClick={() => removeComment(item.id, category, comment.id)} className="text-red-500"><Trash2 size={14} /></button>
-              </div>
-            ))}
-            {count === 0 && <p className="rounded-2xl bg-white/70 px-4 py-3 text-xs font-bold text-slate-400">No comments yet.</p>}
+    <div className={savedCard ? "relative mt-5 rounded-3xl border border-indigo-100 bg-white/70 p-4 backdrop-blur" : "relative mt-5 rounded-3xl border border-slate-200/60 bg-white/40 p-4 backdrop-blur"}>
+      <div className="mb-3 flex items-center gap-2 text-sm font-black text-slate-800"><MessageCircle size={16} /> Comments</div>
+      <div className="space-y-2">
+        {(item.comments || []).map((comment) => (
+          <div key={comment.id} className={dark && !savedCard ? "flex items-start justify-between rounded-2xl bg-white/5 px-4 py-3" : "flex items-start justify-between rounded-2xl bg-white px-4 py-3"}>
+            <div><p className="text-xs font-black text-indigo-500">{comment.name}</p><p className="text-sm font-semibold text-slate-700">{comment.text}</p></div>
+            <button onClick={() => removeComment(item.id, category, comment.id)} className="text-red-500"><Trash2 size={14} /></button>
           </div>
-          <div className="mt-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add comment" className={dark && !savedCard ? "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none" : "min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none"} /><button onClick={() => { addComment(item.id, category, text); setText(""); }} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Post</button></div>
-        </>
-      )}
+        ))}
+      </div>
+      <div className="mt-3 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add comment" className={dark && !savedCard ? "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none" : "min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none"} /><button onClick={() => { addComment(item.id, category, text); setText(""); }} className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Post</button></div>
     </div>
   );
 }
-
 
 export default App;
